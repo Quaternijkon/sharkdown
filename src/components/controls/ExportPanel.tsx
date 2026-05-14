@@ -2,6 +2,8 @@ import { Clipboard, FileArchive, FileText, ImageDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { ToolbarButton } from '../common/Toolbar';
+import { getPdfProfile, listPdfProfiles, type PdfProfileId } from '../../export/pdfProfiles';
+import { settingsFromPdfProfile } from '../../export/pdfExport';
 import type {
   ImageExportFormat,
   ImageExportSettings,
@@ -34,6 +36,7 @@ export function ExportPanel({
   const [imagePixelRatio, setImagePixelRatio] = useState(2);
   const [imageQuality, setImageQuality] = useState(0.92);
   const [sliceHeight, setSliceHeight] = useState(1800);
+  const [pdfProfileId, setPdfProfileId] = useState<PdfProfileId>('a4-report');
   const [pageSize, setPageSize] = useState<PdfPageSize>('a4');
   const [orientation, setOrientation] = useState<PdfOrientation>('portrait');
   const [margin, setMargin] = useState(48);
@@ -41,6 +44,11 @@ export function ExportPanel({
   const [includeHeaderFooter, setIncludeHeaderFooter] = useState(true);
   const [includePageNumbers, setIncludePageNumbers] = useState(true);
   const [title, setTitle] = useState('Sharkdown');
+  const selectedPdfProfile = getPdfProfile(pdfProfileId);
+  const pdfProfileLabels = useMemo(
+    () => Object.fromEntries(listPdfProfiles().map((profile) => [profile.id, profile.label])) as Record<PdfProfileId, string>,
+    [],
+  );
 
   const imageSettings = useMemo<ImageExportSettings>(
     () => ({
@@ -65,6 +73,21 @@ export function ExportPanel({
     }),
     [pageSize, orientation, margin, includeToc, includeHeaderFooter, includePageNumbers, title, backgroundColor],
   );
+
+  function applyPdfProfile(nextProfileId: PdfProfileId) {
+    const profile = getPdfProfile(nextProfileId);
+    setPdfProfileId(nextProfileId);
+    if (!profile) {
+      return;
+    }
+    const profileSettings = settingsFromPdfProfile(profile);
+    setPageSize(profileSettings.pageSize);
+    setOrientation(profileSettings.orientation);
+    setMargin(profileSettings.margin);
+    setIncludeToc(profileSettings.includeToc);
+    setIncludeHeaderFooter(profileSettings.includeHeaderFooter);
+    setIncludePageNumbers(profileSettings.includePageNumbers);
+  }
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-3">
@@ -158,6 +181,18 @@ export function ExportPanel({
               className="h-9 w-full rounded-md border border-slate-200 px-2 text-sm outline-none focus:border-slate-500"
             />
           </label>
+          <OptionGrid
+            label="PDF 档位"
+            options={listPdfProfiles().map((profile) => profile.id)}
+            value={pdfProfileId}
+            labels={pdfProfileLabels}
+            onChange={applyPdfProfile}
+          />
+          {selectedPdfProfile ? (
+            <p className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+              {selectedPdfProfile.description}
+            </p>
+          ) : null}
           <OptionGrid
             label="页面"
             options={['a4', 'letter'] satisfies PdfPageSize[]}

@@ -5,7 +5,9 @@ import {
   createPdfPrintStyles,
   exportPreviewAsPdf,
   resolvePdfSettings,
+  settingsFromPdfProfile,
 } from './pdfExport';
+import { getPdfProfile } from './pdfProfiles';
 
 describe('text PDF print export', () => {
   afterEach(() => {
@@ -25,6 +27,21 @@ describe('text PDF print export', () => {
       includePageNumbers: true,
       title: 'Sharkdown',
     });
+  });
+
+  it('maps PDF profiles onto text PDF settings without overwriting document metadata', () => {
+    const profile = getPdfProfile('handout');
+
+    expect(profile).toBeDefined();
+    expect(settingsFromPdfProfile(profile!)).toMatchObject({
+      pageSize: 'a4',
+      orientation: 'portrait',
+      includeToc: false,
+      includeHeaderFooter: true,
+      includePageNumbers: true,
+    });
+    expect(settingsFromPdfProfile(profile!)).not.toHaveProperty('title');
+    expect(settingsFromPdfProfile(profile!)).not.toHaveProperty('backgroundColor');
   });
 
   it('builds a selectable-text print document with clickable TOC links', () => {

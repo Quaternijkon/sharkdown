@@ -1,4 +1,5 @@
 import type { PdfExportSettings } from '../types';
+import type { PdfProfile } from './pdfProfiles';
 import { waitForPreviewReady } from './waitForAssets';
 
 interface PdfHeadingEntry {
@@ -25,6 +26,29 @@ export function resolvePdfSettings(settings: Partial<PdfExportSettings>): PdfExp
     margin: clamp(settings.margin ?? DEFAULT_PDF_SETTINGS.margin, 18, 96),
     title: settings.title?.trim() || DEFAULT_PDF_SETTINGS.title,
     backgroundColor: settings.backgroundColor?.trim() || DEFAULT_PDF_SETTINGS.backgroundColor,
+  };
+}
+
+export function settingsFromPdfProfile(
+  profile: PdfProfile,
+): Pick<
+  PdfExportSettings,
+  'pageSize' | 'orientation' | 'margin' | 'includeToc' | 'includeHeaderFooter' | 'includePageNumbers'
+> {
+  return {
+    pageSize: profile.page.size === 'A4' ? 'a4' : 'letter',
+    orientation: 'portrait',
+    margin: Math.round(
+      ((profile.page.marginTopMm +
+        profile.page.marginRightMm +
+        profile.page.marginBottomMm +
+        profile.page.marginLeftMm) /
+        4) *
+        2.83465,
+    ),
+    includeToc: profile.features.toc,
+    includeHeaderFooter: profile.features.header || profile.features.footer,
+    includePageNumbers: profile.features.footer,
   };
 }
 
