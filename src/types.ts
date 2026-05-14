@@ -45,7 +45,5 @@ export interface PdfExportSettings {
   includeHeaderFooter: boolean;
   includePageNumbers: boolean;
   title: string;
-  pixelRatio: number;
-  quality: number;
   backgroundColor: string;
 }

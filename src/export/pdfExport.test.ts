@@ -1,50 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  collectPdfOutline,
+  buildPdfPrintDocument,
+  createPdfPrintStyles,
   exportPreviewAsPdf,
-  getPdfPageMetrics,
-  paginateCanvas,
   resolvePdfSettings,
 } from './pdfExport';
 
-const pdfExportMocks = vi.hoisted(() => {
-  const addImageMock = vi.fn();
-  const addPageMock = vi.fn();
-  const linkMock = vi.fn();
-  const outputMock = vi.fn(() => new Blob(['pdf'], { type: 'application/pdf' }));
-
-  return {
-    toCanvasMock: vi.fn(),
-    addImageMock,
-    addPageMock,
-    linkMock,
-    outputMock,
-    jsPDFMock: vi.fn(function MockJsPdf() {
-      return {
-      addImage: addImageMock,
-      addPage: addPageMock,
-      link: linkMock,
-      output: outputMock,
-      };
-    }),
-  };
-});
-
-vi.mock('html-to-image', () => ({
-  toCanvas: pdfExportMocks.toCanvasMock,
-}));
-
-vi.mock('jspdf', () => ({
-  jsPDF: pdfExportMocks.jsPDFMock,
-}));
-
-describe('pdf export planning helpers', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe('text PDF print export', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.querySelectorAll('[data-sharkdown-print-root], [data-sharkdown-print-style]').forEach((node) => {
+      node.remove();
+    });
   });
 
-  it('keeps PDF settings format-specific with sensible defaults', () => {
+  it('keeps PDF settings specific to browser print output', () => {
     expect(resolvePdfSettings({})).toMatchObject({
       pageSize: 'a4',
       orientation: 'portrait',
@@ -52,102 +23,62 @@ describe('pdf export planning helpers', () => {
       includeToc: true,
       includeHeaderFooter: true,
       includePageNumbers: true,
+      title: 'Sharkdown',
     });
   });
 
-  it('paginates a tall canvas by the available PDF content area', () => {
-    const metrics = getPdfPageMetrics({
-      pageSize: 'a4',
-      orientation: 'portrait',
-      margin: 48,
-      includeHeaderFooter: true,
-      includePageNumbers: true,
-      includeToc: true,
-      title: 'Doc',
-      pixelRatio: 2,
-      quality: 0.92,
-      backgroundColor: '#ffffff',
-    });
-
-    const slices = paginateCanvas({
-      canvasWidth: 1200,
-      canvasHeight: 3200,
-      contentWidthPt: metrics.contentWidth,
-      contentHeightPt: metrics.contentHeight,
-    });
-
-    expect(slices.length).toBeGreaterThan(1);
-    expect(slices[0].sourceY).toBe(0);
-    expect(slices.at(-1)?.sourceY).toBeLessThan(3200);
-  });
-
-  it('collects heading targets as clickable outline entries', () => {
-    const root = document.createElement('article');
-    root.innerHTML = `
-      <h1 style="margin-top: 0">Title</h1>
-      <p style="height: 900px">body</p>
+  it('builds a selectable-text print document with clickable TOC links', () => {
+    const source = document.createElement('article');
+    source.className = 'markdown-export-frame sharkdown-prose sharkdown-prose--claude';
+    source.style.setProperty('--preview-text', '#141413');
+    source.style.setProperty('--preview-font-body', 'Georgia, serif');
+    source.innerHTML = `
+      <h1>Intro</h1>
+      <p>Selectable markdown text.</p>
       <h2>Details</h2>
+      <p>More text.</p>
     `;
-    Object.defineProperty(root, 'getBoundingClientRect', {
-      value: () => ({ top: 100 }),
-    });
-    Object.defineProperty(root.querySelector('h1'), 'getBoundingClientRect', {
-      value: () => ({ top: 100 }),
-    });
-    Object.defineProperty(root.querySelector('h2'), 'getBoundingClientRect', {
-      value: () => ({ top: 1020 }),
-    });
 
-    expect(collectPdfOutline(root, 800, 2)).toEqual([
-      { level: 1, text: 'Title', targetPage: 3 },
-      { level: 2, text: 'Details', targetPage: 4 },
-    ]);
+    const settings = resolvePdfSettings({ title: 'Doc', includeToc: true });
+    const printDocument = buildPdfPrintDocument(source, settings);
+
+    expect(printDocument.textContent).toContain('Selectable markdown text.');
+    expect(printDocument.querySelector('canvas')).toBeNull();
+    expect(printDocument.querySelector('img[src^="data:"]')).toBeNull();
+    expect(printDocument.querySelector('a[href="#pdf-heading-0"]')?.textContent).toContain('Intro');
+    expect(printDocument.querySelector('#pdf-heading-1')?.textContent).toBe('Details');
+    expect(printDocument.style.getPropertyValue('--preview-font-body')).toBe('Georgia, serif');
   });
 
-  it('applies PDF image quality to content page compression', async () => {
-    const root = document.createElement('article');
-    Object.defineProperty(root, 'scrollHeight', { configurable: true, value: 600 });
-    const sourceCanvas = document.createElement('canvas');
-    sourceCanvas.width = 400;
-    sourceCanvas.height = 300;
-    pdfExportMocks.toCanvasMock.mockResolvedValue(sourceCanvas);
-    const context = {
-      drawImage: vi.fn(),
-    } as unknown as CanvasRenderingContext2D;
-    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context);
-    const toDataUrlSpy = vi
-      .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
-      .mockReturnValue('data:image/jpeg;base64,content');
+  it('creates paged print CSS instead of image compression CSS', () => {
+    const css = createPdfPrintStyles(
+      resolvePdfSettings({
+        pageSize: 'letter',
+        orientation: 'landscape',
+        margin: 36,
+        includeHeaderFooter: true,
+        includePageNumbers: true,
+      }),
+    );
 
-    try {
-      const result = await exportPreviewAsPdf(root, {
-        pageSize: 'a4',
-        orientation: 'portrait',
-        margin: 48,
-        includeToc: false,
-        includeHeaderFooter: false,
-        includePageNumbers: false,
-        title: 'Doc',
-        pixelRatio: 1,
-        quality: 0.81,
-        backgroundColor: '#ffffff',
-      });
+    expect(css).toContain('@page');
+    expect(css).toContain('size: letter landscape');
+    expect(css).toContain('margin: 36pt');
+    expect(css).toContain('counter(page)');
+    expect(css).not.toContain('image/jpeg');
+    expect(css).not.toContain('canvas');
+  });
 
-      expect(result.type).toBe('application/pdf');
-      expect(toDataUrlSpy).toHaveBeenCalledWith('image/jpeg', 0.81);
-      expect(pdfExportMocks.addImageMock).toHaveBeenCalledWith(
-        'data:image/jpeg;base64,content',
-        'JPEG',
-        expect.any(Number),
-        expect.any(Number),
-        expect.any(Number),
-        expect.any(Number),
-        undefined,
-        'FAST',
-      );
-    } finally {
-      getContextSpy.mockRestore();
-      toDataUrlSpy.mockRestore();
-    }
+  it('prints the prepared text document without returning an image blob', async () => {
+    const source = document.createElement('article');
+    source.innerHTML = '<h1>Printable</h1><p>Text PDF</p>';
+    Object.defineProperty(source, 'scrollHeight', { configurable: true, value: 600 });
+    const printMock = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+
+    const result = await exportPreviewAsPdf(source, resolvePdfSettings({ includeToc: false }));
+
+    expect(result).toBeUndefined();
+    expect(printMock).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-sharkdown-print-root]')).toBeNull();
   });
 });

@@ -40,8 +40,6 @@ export function ExportPanel({
   const [includeToc, setIncludeToc] = useState(true);
   const [includeHeaderFooter, setIncludeHeaderFooter] = useState(true);
   const [includePageNumbers, setIncludePageNumbers] = useState(true);
-  const [pdfPixelRatio, setPdfPixelRatio] = useState(2);
-  const [pdfQuality, setPdfQuality] = useState(0.92);
   const [title, setTitle] = useState('Sharkdown');
 
   const imageSettings = useMemo<ImageExportSettings>(
@@ -63,22 +61,9 @@ export function ExportPanel({
       includeHeaderFooter,
       includePageNumbers,
       title,
-      pixelRatio: pdfPixelRatio,
-      quality: pdfQuality,
       backgroundColor,
     }),
-    [
-      pageSize,
-      orientation,
-      margin,
-      includeToc,
-      includeHeaderFooter,
-      includePageNumbers,
-      title,
-      pdfPixelRatio,
-      pdfQuality,
-      backgroundColor,
-    ],
+    [pageSize, orientation, margin, includeToc, includeHeaderFooter, includePageNumbers, title, backgroundColor],
   );
 
   return (
@@ -195,29 +180,16 @@ export function ExportPanel({
             display={`${margin}pt`}
             onChange={setMargin}
           />
-          <OptionGrid
-            label="渲染倍率"
-            options={[1, 2, 3]}
-            value={pdfPixelRatio}
-            suffix="x"
-            onChange={setPdfPixelRatio}
-          />
-          <RangeControl
-            label="图片质量"
-            min={0.72}
-            max={1}
-            step={0.01}
-            value={pdfQuality}
-            display={`${Math.round(pdfQuality * 100)}%`}
-            onChange={setPdfQuality}
-          />
           <ToggleControl label="可跳转目录" checked={includeToc} onChange={setIncludeToc} />
           <ToggleControl label="页眉页脚" checked={includeHeaderFooter} onChange={setIncludeHeaderFooter} />
           <ToggleControl label="页码" checked={includePageNumbers} onChange={setIncludePageNumbers} />
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+            使用浏览器打印生成文字版 PDF，可复制、搜索，并保留链接。打印窗口中选择“另存为 PDF”。
+          </p>
           <ToolbarButton
             icon={<FileText size={16} />}
-            label="下载 PDF"
-            text="下载 PDF"
+            label="打印或保存 PDF"
+            text="保存 PDF"
             tone="primary"
             disabled={busy}
             onClick={() => onPdfDownload(pdfSettings)}

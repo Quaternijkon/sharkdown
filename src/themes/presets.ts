@@ -4,8 +4,8 @@ const systemBody =
   'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 const systemCode =
   '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, "Microsoft YaHei UI", monospace';
-const humanistBody =
-  '"Avenir Next", "Segoe UI", "PingFang SC", "Noto Serif SC", "Source Han Serif SC", Georgia, serif';
+const editorialSerif =
+  '"Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, Georgia, "Times New Roman", serif';
 const techBody =
   '"Inter", "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
 
@@ -13,22 +13,22 @@ export const themePresets: ThemePreset[] = [
   {
     id: 'claude',
     name: 'Claude 暖纸',
-    description: '暖白、赭色点缀和人文气息字体，适合长文解释和思考型内容。',
-    swatches: ['#fbf7ef', '#cc785c', '#332b25', '#efe6d6'],
+    description: '暖纸底色、陶土橙点缀和衬线长文排版，适合解释、推理和人文感内容。',
+    swatches: ['#faf9f5', '#d97757', '#141413', '#e8e6dc'],
     proseClassName: 'sharkdown-prose--claude',
     cssVars: {
-      '--preview-bg': '#fbf7ef',
-      '--preview-surface': '#f3eadf',
-      '--preview-text': '#332b25',
-      '--preview-muted': '#74685f',
-      '--preview-border': '#dfd2bf',
-      '--preview-accent': '#cc785c',
-      '--preview-accent-soft': '#f5e3d7',
-      '--preview-code-bg': '#efe6d6',
-      '--preview-code-text': '#332b25',
-      '--preview-shadow': '0 18px 44px rgba(95, 65, 42, 0.14)',
-      '--preview-font-body': humanistBody,
-      '--preview-font-heading': humanistBody,
+      '--preview-bg': '#faf9f5',
+      '--preview-surface': '#f3f1e8',
+      '--preview-text': '#141413',
+      '--preview-muted': '#6f6a61',
+      '--preview-border': '#dedcd1',
+      '--preview-accent': '#d97757',
+      '--preview-accent-soft': '#f1dfd4',
+      '--preview-code-bg': '#e8e6dc',
+      '--preview-code-text': '#141413',
+      '--preview-shadow': '0 18px 44px rgba(20, 20, 19, 0.12)',
+      '--preview-font-body': editorialSerif,
+      '--preview-font-heading': editorialSerif,
       '--preview-font-code': systemCode,
     },
   },
@@ -57,8 +57,8 @@ export const themePresets: ThemePreset[] = [
   {
     id: 'apple',
     name: 'Apple 艺术',
-    description: '苹方/SF 字体、轻盈留白和柔和蓝紫灰，适合精致展示图。',
-    swatches: ['#f5f5f7', '#0071e3', '#a855f7', '#1d1d1f'],
+    description: 'SF/苹方、克制蓝色、细分割线和大留白，适合精致、现代的展示图。',
+    swatches: ['#f5f5f7', '#007aff', '#ffffff', '#1d1d1f'],
     proseClassName: 'sharkdown-prose--apple',
     cssVars: {
       '--preview-bg': '#f5f5f7',
@@ -66,11 +66,11 @@ export const themePresets: ThemePreset[] = [
       '--preview-text': '#1d1d1f',
       '--preview-muted': '#6e6e73',
       '--preview-border': '#d2d2d7',
-      '--preview-accent': '#0071e3',
+      '--preview-accent': '#007aff',
       '--preview-accent-soft': '#e8f2ff',
       '--preview-code-bg': '#ffffff',
       '--preview-code-text': '#1d1d1f',
-      '--preview-shadow': '0 24px 70px rgba(29, 29, 31, 0.12)',
+      '--preview-shadow': '0 24px 70px rgba(29, 29, 31, 0.1)',
       '--preview-font-body': '"SF Pro Text", "PingFang SC", system-ui, sans-serif',
       '--preview-font-heading': '"SF Pro Display", "PingFang SC", system-ui, sans-serif',
       '--preview-font-code': systemCode,

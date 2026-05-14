@@ -32,4 +32,12 @@ describe('theme presets', () => {
   it('falls back to the GitHub theme for unknown ids', () => {
     expect(getThemeById('missing').id).toBe('claude');
   });
+
+  it('keeps the Claude preset in an editorial serif style', () => {
+    const claude = getThemeById('claude');
+
+    expect(claude.cssVars['--preview-font-body']).toMatch(/^"Iowan Old Style"/);
+    expect(claude.cssVars['--preview-font-body']).toContain('serif');
+    expect(claude.cssVars['--preview-font-body']).not.toContain('sans-serif');
+  });
 });

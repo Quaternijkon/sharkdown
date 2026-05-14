@@ -107,12 +107,11 @@ export function App() {
   function handlePdfDownload(settings: PdfExportSettings) {
     void runExport(async () => {
       const target = requirePreviewTarget(previewRef.current);
-      const blob = await exportPreviewAsPdf(target, {
+      await exportPreviewAsPdf(target, {
         ...settings,
         backgroundColor: background,
       });
-      downloadBlob(blob, createExportFileName('pdf'));
-      showNotice('PDF 已生成。', 'success');
+      showNotice('已打开打印窗口，请选择“另存为 PDF”。', 'success');
     });
   }
 
