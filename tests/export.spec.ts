@@ -32,3 +32,18 @@ test('renders the editor, preview, themes, formulas, diagrams, and export contro
   expect(download.suggestedFilename()).toMatch(/\.png$/);
   await expect(page.getByText('PNG 已生成。')).toBeVisible();
 });
+
+test('shows conversion targets and recommended formats', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Sharkdown', exact: true })).toBeVisible();
+  const convertPanel = page.locator('section').filter({ hasText: '转换目标' });
+  await expect(convertPanel.getByText('Convert')).toBeVisible();
+  await convertPanel.getByRole('button', { name: /小红书图文/ }).click();
+  await expect(convertPanel.getByText('轮播拆分')).toBeVisible();
+  await expect(convertPanel.getByRole('button', { name: 'png', exact: true })).toBeVisible();
+
+  await convertPanel.getByRole('button', { name: /微信公众号/ }).click();
+  await expect(convertPanel.getByRole('button', { name: 'html-fragment', exact: true })).toBeVisible();
+  await expect(convertPanel.getByRole('button', { name: 'rich-text', exact: true })).toBeVisible();
+});

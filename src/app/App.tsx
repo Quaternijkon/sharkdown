@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { ExportPanel } from '../components/controls/ExportPanel';
+import { ConvertPanel } from '../components/convert/ConvertPanel';
 import { DocumentLibraryPanel } from '../components/library/DocumentLibraryPanel';
 import { SizePanel } from '../components/controls/SizePanel';
 import { ThemePanel } from '../components/controls/ThemePanel';
@@ -8,15 +9,22 @@ import { MarkdownEditor } from '../components/editor/MarkdownEditor';
 import { PreviewFrame } from '../components/preview/PreviewFrame';
 import { SharePanel } from '../components/share/SharePanel';
 import { TemplatePanel } from '../components/templates/TemplatePanel';
+import { createBinaryArtifact, createTextArtifact, type ConvertArtifact, type ConvertTargetId } from '../convert/artifact';
+import { createHtmlFragmentArtifact } from '../convert/htmlFragment';
 import { ClipboardImageError, copyBlobToClipboard } from '../export/clipboard';
+import { createBatchManifest, createBatchZipBlob } from '../export/batchPackage';
 import { exportExtension, exportPreviewAsBlob } from '../export/exportImage';
 import { exportPreviewAsPdf } from '../export/pdfExport';
 import { exportSlicedPng } from '../export/sliceLongImage';
 import { PreviewReadinessError } from '../export/waitForAssets';
+import { copyPlainText, copyRichHtmlForTarget, markdownToPlainText } from '../share/clipboardFormats';
+import { createStandaloneHtmlBlob } from '../share/htmlExport';
 import { SharePayloadError, readSharePayloadFromHash } from '../share/urlShare';
 import { useEditorStore } from '../store/useEditorStore';
+import { getThemeById } from '../themes/presets';
 import type { ImageExportSettings, PdfExportSettings } from '../types';
 import { createExportFileName, downloadBlob } from '../utils/download';
+import { APP_VERSION } from '../version';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -27,7 +35,9 @@ interface Notice {
 
 export function App() {
   const previewRef = useRef<HTMLDivElement>(null);
+  const markdown = useEditorStore((state) => state.markdown);
   const background = useEditorStore((state) => state.background);
+  const themeId = useEditorStore((state) => state.themeId);
   const setMarkdown = useEditorStore((state) => state.setMarkdown);
   const updateSettings = useEditorStore((state) => state.updateSettings);
   const [busy, setBusy] = useState(false);
@@ -139,6 +149,170 @@ export function App() {
     });
   }
 
+  function handleConvertArtifacts(targetId: ConvertTargetId, kinds: ConvertArtifact['kind'][]) {
+    void runExport(async () => {
+      const target = requirePreviewTarget(previewRef.current);
+      for (const kind of kinds) {
+        await exportConvertArtifact(target, targetId, kind);
+      }
+    });
+  }
+
+  async function exportConvertArtifact(
+    target: HTMLElement,
+    targetId: ConvertTargetId,
+    kind: ConvertArtifact['kind'],
+  ): Promise<void> {
+    const title = extractTitle(markdown);
+
+    if (kind === 'png' || kind === 'jpeg' || kind === 'webp' || kind === 'svg') {
+      const blob = await exportPreviewAsBlob(target, {
+        format: kind,
+        pixelRatio: 2,
+        backgroundColor: background,
+        quality: 0.92,
+      });
+      downloadBlob(blob, createExportFileName(exportExtension(kind)));
+      showNotice(`已生成 ${targetLabel(targetId)} ${kind.toUpperCase()}。`, 'success');
+      return;
+    }
+
+    if (kind === 'pdf') {
+      await exportPreviewAsPdf(target, {
+        pageSize: 'a4',
+        orientation: 'portrait',
+        margin: 48,
+        includeToc: true,
+        includeHeaderFooter: true,
+        includePageNumbers: true,
+        title,
+        backgroundColor: background,
+      });
+      showNotice('已打开打印窗口，请选择“另存为 PDF”。', 'success');
+      return;
+    }
+
+    if (kind === 'html') {
+      const theme = getThemeById(themeId);
+      const blob = createStandaloneHtmlBlob({
+        title,
+        renderedHtml: target.innerHTML,
+        themeClassName: theme.proseClassName ?? '',
+        themeVars: theme.cssVars,
+        markdown,
+        includeSourceMarkdown: true,
+      });
+      downloadBlob(blob, createExportFileName('html'));
+      showNotice(`已生成 ${targetLabel(targetId)} HTML。`, 'success');
+      return;
+    }
+
+    if (kind === 'html-fragment' || kind === 'rich-text') {
+      const artifact = createHtmlFragmentArtifact({
+        html: target.innerHTML,
+        title,
+        targetId,
+        includesLocalAssets: markdown.includes('local-image://'),
+      });
+      await copyRichHtmlForTarget(artifact.text ?? target.innerHTML, target.textContent ?? markdown, targetId);
+      showNotice(`已复制 ${targetLabel(targetId)} HTML 片段。`, 'success');
+      return;
+    }
+
+    if (kind === 'markdown') {
+      const artifact = createTextArtifact({
+        kind: 'markdown',
+        fileName: 'sharkdown.md',
+        mimeType: 'text/markdown;charset=utf-8',
+        text: markdown,
+        title,
+        targetId,
+        includesSourceMarkdown: true,
+        includesLocalAssets: markdown.includes('local-image://'),
+      });
+      downloadBlob(new Blob([artifact.text ?? markdown], { type: artifact.mimeType }), artifact.fileName);
+      showNotice(`已生成 ${targetLabel(targetId)} Markdown。`, 'success');
+      return;
+    }
+
+    if (kind === 'plain-text') {
+      await copyPlainText(markdown);
+      showNotice(`已复制 ${targetLabel(targetId)}纯文本。`, 'success');
+      return;
+    }
+
+    if (kind === 'zip') {
+      const artifacts = await createBatchArtifacts(target, targetId, title);
+      const createdAt = new Date().toISOString();
+      const manifest = createBatchManifest({
+        title,
+        targetId,
+        artifacts,
+        createdAt,
+        appVersion: APP_VERSION,
+      });
+      const blob = await createBatchZipBlob({ manifest, artifacts });
+      downloadBlob(blob, createExportFileName('zip'));
+      showNotice(`已生成 ${targetLabel(targetId)}批量包。`, 'success');
+      return;
+    }
+
+    showNotice(`暂不支持 ${kind} 转换。`, 'info');
+  }
+
+  async function createBatchArtifacts(
+    target: HTMLElement,
+    targetId: ConvertTargetId,
+    title: string,
+  ): Promise<ConvertArtifact[]> {
+    const createdAt = new Date();
+    const htmlFragment = createHtmlFragmentArtifact({
+      html: target.innerHTML,
+      title,
+      targetId,
+      includesLocalAssets: markdown.includes('local-image://'),
+    });
+    const markdownArtifact = createTextArtifact({
+      kind: 'markdown',
+      fileName: 'source.md',
+      mimeType: 'text/markdown;charset=utf-8',
+      text: markdown,
+      title,
+      targetId,
+      includesSourceMarkdown: true,
+      includesLocalAssets: markdown.includes('local-image://'),
+      now: createdAt,
+    });
+    const plainTextArtifact = createTextArtifact({
+      kind: 'plain-text',
+      fileName: 'plain-text.txt',
+      mimeType: 'text/plain;charset=utf-8',
+      text: markdownToPlainText(markdown),
+      title,
+      targetId,
+      includesSourceMarkdown: false,
+      includesLocalAssets: false,
+      now: createdAt,
+    });
+    const pngBlob = await exportPreviewAsBlob(target, {
+      format: 'png',
+      pixelRatio: 2,
+      backgroundColor: background,
+    });
+    const pngArtifact = createBinaryArtifact({
+      kind: 'png',
+      fileName: 'preview.png',
+      mimeType: 'image/png',
+      blob: pngBlob,
+      title,
+      targetId,
+      includesLocalAssets: markdown.includes('local-image://'),
+      now: createdAt,
+    });
+
+    return [markdownArtifact, plainTextArtifact, htmlFragment, pngArtifact];
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-950 px-4 py-3 text-white">
@@ -181,6 +355,13 @@ export function App() {
             onSliceExport={handleSliceExport}
             onPdfDownload={handlePdfDownload}
           />
+          <ConvertPanel
+            markdown={markdown}
+            renderedHtml={previewRef.current?.innerHTML ?? ''}
+            estimatedLocalAssetBytes={0}
+            busy={busy}
+            onExportArtifacts={handleConvertArtifacts}
+          />
           <SharePanel previewRef={previewRef} onNotice={showNotice} />
           <TemplatePanel onNotice={showNotice} />
         </aside>
@@ -207,4 +388,24 @@ function toUserMessage(err: unknown): string {
     return err.message;
   }
   return '导出失败，请降低像素倍率或减少内容后重试。';
+}
+
+function extractTitle(markdown: string): string {
+  return /^#\s+(.+)$/m.exec(markdown)?.[1]?.trim() || 'Sharkdown';
+}
+
+function targetLabel(targetId: ConvertTargetId): string {
+  const labels: Partial<Record<ConvertTargetId, string>> = {
+    wechat: '微信公众号',
+    xiaohongshu: '小红书',
+    douyin: '抖音',
+    zhihu: '知乎',
+    github: 'GitHub',
+    notion: 'Notion',
+    email: '邮件',
+    slides: '轮播',
+    print: '打印',
+    generic: '通用',
+  };
+  return labels[targetId] ?? '转换';
 }
