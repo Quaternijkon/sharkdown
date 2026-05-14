@@ -6,11 +6,18 @@ All notable changes to Sharkdown are recorded here. The app follows practical se
 
 ### Added
 
-- Convert workspace for platform presets, carousel splitting, target preflight, batch export, and richer format handoff.
+- Convert workspace with target presets for common social and document destinations.
+- Platform presets for WeChat, Xiaohongshu, Douyin, Zhihu, GitHub, Notion, Email, Print, slides, and generic conversion.
+- Carousel/card splitting for long Markdown content.
+- Target-specific HTML fragment and rich text conversion.
+- PDF layout profiles for report, mobile reading, and handout exports.
+- Batch export package manifest and ZIP generation.
+- Target preflight diagnostics for remote images, long card text, wide tables, raw HTML, formulas, Mermaid diagrams, local asset size, and sensitive content.
 
 ### Changed
 
 - App version is centralized in `src/version.ts` and written into generated artifacts.
+- README now documents the conversion scope and release maintenance policy.
 
 ### Compatibility
 
