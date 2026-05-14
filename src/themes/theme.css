@@ -1,0 +1,179 @@
+.markdown-export-frame {
+  color: var(--preview-text);
+  background: var(--preview-bg);
+  box-shadow: var(--preview-shadow);
+  font-family: var(--preview-font-body);
+  overflow: hidden;
+}
+
+.sharkdown-prose {
+  max-width: none;
+  line-height: 1.72;
+  letter-spacing: 0;
+}
+
+.sharkdown-prose :where(h1, h2, h3, h4) {
+  color: var(--preview-text);
+  font-family: var(--preview-font-heading);
+  font-weight: 760;
+  line-height: 1.18;
+  letter-spacing: 0;
+  margin: 1.4em 0 0.55em;
+}
+
+.sharkdown-prose :where(h1) {
+  font-size: 2.2em;
+  border-bottom: 1px solid var(--preview-border);
+  padding-bottom: 0.36em;
+  margin-top: 0;
+}
+
+.sharkdown-prose :where(h2) {
+  font-size: 1.55em;
+}
+
+.sharkdown-prose :where(h3) {
+  font-size: 1.2em;
+}
+
+.sharkdown-prose :where(p, ul, ol, blockquote, table, pre, figure) {
+  margin: 0.9em 0;
+}
+
+.sharkdown-prose :where(a) {
+  color: var(--preview-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.sharkdown-prose :where(strong) {
+  color: var(--preview-text);
+  font-weight: 720;
+}
+
+.sharkdown-prose :where(hr) {
+  border: 0;
+  border-top: 1px solid var(--preview-border);
+  margin: 1.6em 0;
+}
+
+.sharkdown-prose :where(blockquote) {
+  border-left: 4px solid var(--preview-accent);
+  background: var(--preview-accent-soft);
+  color: var(--preview-text);
+  margin-left: 0;
+  padding: 0.75em 1em;
+}
+
+.sharkdown-prose :where(table) {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
+
+.sharkdown-prose :where(th, td) {
+  border: 1px solid var(--preview-border);
+  padding: 0.56em 0.75em;
+}
+
+.sharkdown-prose :where(th) {
+  background: var(--preview-surface);
+  color: var(--preview-text);
+}
+
+.sharkdown-prose :where(code) {
+  background: var(--preview-code-bg);
+  border: 1px solid var(--preview-border);
+  border-radius: 6px;
+  color: var(--preview-code-text);
+  font-family: var(--preview-font-code);
+  font-size: 0.88em;
+  padding: 0.12em 0.35em;
+}
+
+.sharkdown-prose :where(pre code) {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.sharkdown-prose :where(ul, ol) {
+  padding-left: 1.3em;
+}
+
+.sharkdown-prose :where(li) {
+  margin: 0.28em 0;
+}
+
+.sharkdown-prose :where(input[type='checkbox']) {
+  accent-color: var(--preview-accent);
+  margin-right: 0.45em;
+}
+
+.sharkdown-prose :where(img) {
+  border-radius: 10px;
+  display: block;
+  max-width: 100%;
+}
+
+.sharkdown-code-block {
+  background: var(--preview-code-bg);
+  border: 1px solid var(--preview-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sharkdown-code-block figcaption {
+  border-bottom: 1px solid var(--preview-border);
+  color: var(--preview-muted);
+  font-family: var(--preview-font-code);
+  font-size: 0.76em;
+  padding: 0.55em 0.85em;
+  text-transform: lowercase;
+}
+
+.sharkdown-code-block pre {
+  margin: 0;
+  overflow-x: auto;
+  padding: 1em;
+}
+
+.sharkdown-code-html pre {
+  background: transparent !important;
+  color: var(--preview-code-text) !important;
+}
+
+.sharkdown-mermaid {
+  background: var(--preview-surface);
+  border: 1px solid var(--preview-border);
+  border-radius: 10px;
+  color: var(--preview-text);
+  overflow-x: auto;
+  padding: 1em;
+}
+
+.sharkdown-mermaid svg {
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+.sharkdown-mermaid-placeholder {
+  color: var(--preview-muted);
+  font-size: 0.9em;
+}
+
+.sharkdown-mermaid-error {
+  color: #b91c1c;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2em 0;
+}

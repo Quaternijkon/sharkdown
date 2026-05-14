@@ -1,0 +1,133 @@
+import type { ThemePreset } from '../types';
+
+const systemBody =
+  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
+const systemCode =
+  '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, "Microsoft YaHei UI", monospace';
+
+export const themePresets: ThemePreset[] = [
+  {
+    id: 'github',
+    name: 'GitHub',
+    description: '干净的文档风格，适合技术说明和 README 片段。',
+    cssVars: {
+      '--preview-bg': '#ffffff',
+      '--preview-surface': '#f6f8fa',
+      '--preview-text': '#24292f',
+      '--preview-muted': '#57606a',
+      '--preview-border': '#d0d7de',
+      '--preview-accent': '#0969da',
+      '--preview-accent-soft': '#ddf4ff',
+      '--preview-code-bg': '#f6f8fa',
+      '--preview-code-text': '#24292f',
+      '--preview-shadow': '0 18px 50px rgba(31, 35, 40, 0.12)',
+      '--preview-font-body': systemBody,
+      '--preview-font-heading': systemBody,
+      '--preview-font-code': systemCode,
+    },
+  },
+  {
+    id: 'dark',
+    name: '暗色',
+    description: '低亮度阅读体验，适合代码片段和深色社交图。',
+    cssVars: {
+      '--preview-bg': '#111827',
+      '--preview-surface': '#1f2937',
+      '--preview-text': '#f9fafb',
+      '--preview-muted': '#cbd5e1',
+      '--preview-border': '#374151',
+      '--preview-accent': '#38bdf8',
+      '--preview-accent-soft': '#082f49',
+      '--preview-code-bg': '#0f172a',
+      '--preview-code-text': '#e5e7eb',
+      '--preview-shadow': '0 20px 60px rgba(2, 6, 23, 0.45)',
+      '--preview-font-body': systemBody,
+      '--preview-font-heading': systemBody,
+      '--preview-font-code': systemCode,
+    },
+  },
+  {
+    id: 'paper',
+    name: '纸张',
+    description: '带有柔和纸感的长文排版，适合知识卡片。',
+    cssVars: {
+      '--preview-bg': '#fbf7ef',
+      '--preview-surface': '#f3ead9',
+      '--preview-text': '#2f2a24',
+      '--preview-muted': '#74695f',
+      '--preview-border': '#ded2bd',
+      '--preview-accent': '#b45309',
+      '--preview-accent-soft': '#ffedd5',
+      '--preview-code-bg': '#efe7d8',
+      '--preview-code-text': '#2f2a24',
+      '--preview-shadow': '0 18px 44px rgba(120, 83, 42, 0.16)',
+      '--preview-font-body': systemBody,
+      '--preview-font-heading': '"Georgia", "Times New Roman", "Songti SC", serif',
+      '--preview-font-code': systemCode,
+    },
+  },
+  {
+    id: 'minimal',
+    name: '极简',
+    description: '高留白、低装饰，适合正式文档插图。',
+    cssVars: {
+      '--preview-bg': '#fafafa',
+      '--preview-surface': '#ffffff',
+      '--preview-text': '#171717',
+      '--preview-muted': '#737373',
+      '--preview-border': '#e5e5e5',
+      '--preview-accent': '#0f766e',
+      '--preview-accent-soft': '#ccfbf1',
+      '--preview-code-bg': '#f4f4f5',
+      '--preview-code-text': '#18181b',
+      '--preview-shadow': '0 16px 38px rgba(23, 23, 23, 0.08)',
+      '--preview-font-body': systemBody,
+      '--preview-font-heading': systemBody,
+      '--preview-font-code': systemCode,
+    },
+  },
+  {
+    id: 'tech',
+    name: '科技',
+    description: '更强的边框和强调色，适合方案图和产品说明。',
+    cssVars: {
+      '--preview-bg': '#f8fafc',
+      '--preview-surface': '#e0f2fe',
+      '--preview-text': '#0f172a',
+      '--preview-muted': '#475569',
+      '--preview-border': '#7dd3fc',
+      '--preview-accent': '#7c3aed',
+      '--preview-accent-soft': '#ede9fe',
+      '--preview-code-bg': '#eef2ff',
+      '--preview-code-text': '#1e1b4b',
+      '--preview-shadow': '0 18px 55px rgba(37, 99, 235, 0.16)',
+      '--preview-font-body': systemBody,
+      '--preview-font-heading': systemBody,
+      '--preview-font-code': systemCode,
+    },
+  },
+  {
+    id: 'academic',
+    name: '学术',
+    description: '强调正文节奏和公式可读性，适合研究笔记。',
+    cssVars: {
+      '--preview-bg': '#fffdf7',
+      '--preview-surface': '#f8fafc',
+      '--preview-text': '#1f2937',
+      '--preview-muted': '#64748b',
+      '--preview-border': '#cbd5e1',
+      '--preview-accent': '#1d4ed8',
+      '--preview-accent-soft': '#dbeafe',
+      '--preview-code-bg': '#f1f5f9',
+      '--preview-code-text': '#111827',
+      '--preview-shadow': '0 16px 42px rgba(30, 41, 59, 0.12)',
+      '--preview-font-body': '"Source Serif Pro", "Georgia", "Songti SC", serif, sans-serif',
+      '--preview-font-heading': '"Source Serif Pro", "Georgia", "Songti SC", serif, sans-serif',
+      '--preview-font-code': systemCode,
+    },
+  },
+];
+
+export function getThemeById(themeId: string): ThemePreset {
+  return themePresets.find((theme) => theme.id === themeId) ?? themePresets[0];
+}
