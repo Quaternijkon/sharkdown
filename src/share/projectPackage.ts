@@ -1,4 +1,5 @@
 import type { DocumentState } from '../types';
+import { APP_VERSION } from '../version';
 import {
   getLocalImageAsset,
   parseLocalImageReference,
@@ -53,7 +54,7 @@ export async function createProjectPackageBlob(input: CreateProjectPackageInput)
       createdBy: 'Sharkdown',
       createdAt: input.createdAt ?? new Date().toISOString(),
       title: input.title.trim() || 'Untitled Sharkdown Document',
-      appVersion: input.appVersion ?? '0.1.0',
+      appVersion: input.appVersion ?? APP_VERSION,
       assetCount: assets.length,
     },
     markdown: input.markdown,

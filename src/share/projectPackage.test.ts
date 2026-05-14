@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_DOCUMENT_STATE } from '../store/useEditorStore';
+import { APP_VERSION } from '../version';
 import {
   SHARKDOWN_PROJECT_VERSION,
   createProjectPackageBlob,
@@ -51,5 +52,18 @@ describe('sharkdown project packages', () => {
     await expect(parseProjectPackageFile(new File(['{"format":"wrong"}'], 'bad.sharkdown'))).rejects.toThrow(
       '无法识别的 Sharkdown 工程包。',
     );
+  });
+
+  it('uses the centralized app version in package manifests', async () => {
+    const blob = await createProjectPackageBlob({
+      title: 'Versioned export',
+      markdown: '# Versioned export',
+      state: DEFAULT_DOCUMENT_STATE,
+      assets: [],
+    });
+
+    const parsed = await parseProjectPackageFile(new File([blob], 'doc.sharkdown'));
+
+    expect(parsed.manifest.appVersion).toBe(APP_VERSION);
   });
 });
