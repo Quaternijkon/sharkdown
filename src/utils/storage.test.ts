@@ -12,7 +12,7 @@ describe('local storage helpers', () => {
   });
 
   it('saves and loads typed JSON state', () => {
-    const state = { markdown: '# Test', themeId: 'github', pixelRatio: 2 };
+    const state = { markdown: '# Test', themeId: 'claude', width: 720 };
 
     saveStoredState('test-key', state);
 

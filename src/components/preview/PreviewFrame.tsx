@@ -35,7 +35,7 @@ export const PreviewFrame = forwardRef<HTMLDivElement>(function PreviewFrame(_, 
         <div className="flex min-h-full justify-center" style={{ background }}>
           <article
             ref={ref}
-            className="markdown-export-frame sharkdown-prose"
+            className={`markdown-export-frame sharkdown-prose ${theme.proseClassName ?? ''}`}
             style={frameStyle}
           >
             <MarkdownRenderer markdown={markdown || '\u00A0'} allowRawHtml={allowRawHtml} />

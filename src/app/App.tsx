@@ -7,10 +7,11 @@ import { MarkdownEditor } from '../components/editor/MarkdownEditor';
 import { PreviewFrame } from '../components/preview/PreviewFrame';
 import { ClipboardImageError, copyBlobToClipboard } from '../export/clipboard';
 import { exportExtension, exportPreviewAsBlob } from '../export/exportImage';
+import { exportPreviewAsPdf } from '../export/pdfExport';
 import { exportSlicedPng } from '../export/sliceLongImage';
 import { PreviewReadinessError } from '../export/waitForAssets';
 import { useEditorStore } from '../store/useEditorStore';
-import type { ExportFormat } from '../types';
+import type { ImageExportSettings, PdfExportSettings } from '../types';
 import { createExportFileName, downloadBlob } from '../utils/download';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -22,7 +23,6 @@ interface Notice {
 
 export function App() {
   const previewRef = useRef<HTMLDivElement>(null);
-  const pixelRatio = useEditorStore((state) => state.pixelRatio);
   const background = useEditorStore((state) => state.background);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>({
@@ -51,27 +51,27 @@ export function App() {
     }
   }
 
-  function handleDownload(format: ExportFormat) {
+  function handleImageDownload(settings: ImageExportSettings) {
     void runExport(async () => {
       const target = requirePreviewTarget(previewRef.current);
       const blob = await exportPreviewAsBlob(target, {
-        format,
-        pixelRatio,
+        format: settings.format,
+        pixelRatio: settings.pixelRatio,
         backgroundColor: background,
-        quality: 0.92,
+        quality: settings.quality,
       });
-      const extension = exportExtension(format);
+      const extension = exportExtension(settings.format);
       downloadBlob(blob, createExportFileName(extension));
       showNotice(`${extension.toUpperCase()} 已生成。`, 'success');
     });
   }
 
-  function handleCopyImage() {
+  function handleCopyImage(settings: ImageExportSettings) {
     void runExport(async () => {
       const target = requirePreviewTarget(previewRef.current);
       const blob = await exportPreviewAsBlob(target, {
         format: 'png',
-        pixelRatio,
+        pixelRatio: settings.pixelRatio,
         backgroundColor: background,
       });
 
@@ -89,18 +89,30 @@ export function App() {
     });
   }
 
-  function handleSliceExport() {
+  function handleSliceExport(settings: ImageExportSettings) {
     void runExport(async () => {
       const target = requirePreviewTarget(previewRef.current);
       const slices = await exportSlicedPng(target, {
-        pixelRatio,
+        pixelRatio: settings.pixelRatio,
         backgroundColor: background,
-        sliceHeight: 1800,
+        sliceHeight: settings.sliceHeight,
       });
       slices.forEach((blob, index) => {
         downloadBlob(blob, createExportFileName('png', `part-${String(index + 1).padStart(2, '0')}`));
       });
       showNotice(`已生成 ${slices.length} 张切片。`, 'success');
+    });
+  }
+
+  function handlePdfDownload(settings: PdfExportSettings) {
+    void runExport(async () => {
+      const target = requirePreviewTarget(previewRef.current);
+      const blob = await exportPreviewAsPdf(target, {
+        ...settings,
+        backgroundColor: background,
+      });
+      downloadBlob(blob, createExportFileName('pdf'));
+      showNotice('PDF 已生成。', 'success');
     });
   }
 
@@ -137,9 +149,11 @@ export function App() {
           <SizePanel />
           <ExportPanel
             busy={busy}
-            onDownload={handleDownload}
+            backgroundColor={background}
+            onImageDownload={handleImageDownload}
             onCopyImage={handleCopyImage}
             onSliceExport={handleSliceExport}
+            onPdfDownload={handlePdfDownload}
           />
         </aside>
       </main>

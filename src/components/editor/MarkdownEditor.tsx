@@ -1,9 +1,9 @@
 import { Clipboard, FileText, ImagePlus, RotateCcw, Trash2 } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, type ClipboardEvent } from 'react';
 
 import { ToolbarButton } from '../common/Toolbar';
 import { DEFAULT_MARKDOWN, useEditorStore } from '../../store/useEditorStore';
-import { createImageMarkdown, fileToDataUrl } from '../../utils/imageInline';
+import { createLocalImageMarkdown, saveLocalImageAsset } from '../../utils/localImages';
 
 interface MarkdownEditorProps {
   onNotice: (message: string, tone?: 'info' | 'success' | 'error') => void;
@@ -27,12 +27,24 @@ export function MarkdownEditor({ onNotice }: MarkdownEditorProps) {
 
   async function handleImageFile(file: File) {
     try {
-      const dataUrl = await fileToDataUrl(file);
-      insertAtCursor(createImageMarkdown(file.name, dataUrl));
-      onNotice('本地图片已内联到 Markdown。', 'success');
+      const reference = await saveLocalImageAsset(file);
+      insertAtCursor(createLocalImageMarkdown(reference));
+      onNotice('本地图片已作为短引用插入。', 'success');
     } catch (err) {
       onNotice(err instanceof Error ? err.message : '本地图片读取失败。', 'error');
     }
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const imageFiles = Array.from(event.clipboardData.files).filter((file) =>
+      file.type.startsWith('image/'),
+    );
+    if (imageFiles.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    void Promise.all(imageFiles.map((file) => handleImageFile(file)));
   }
 
   function insertAtCursor(text: string) {
@@ -96,6 +108,7 @@ export function MarkdownEditor({ onNotice }: MarkdownEditorProps) {
         value={markdown}
         spellCheck={false}
         onChange={(event) => setMarkdown(event.target.value)}
+        onPaste={handlePaste}
         className="min-h-[420px] flex-1 resize-none border-0 bg-slate-950 p-4 font-mono text-[14px] leading-6 text-slate-100 outline-none"
       />
       <input

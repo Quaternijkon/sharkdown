@@ -23,7 +23,7 @@ export const DEFAULT_MARKDOWN = `# Sharkdown 示例
 | Export | html-to-image | ready |
 
 \`\`\`ts
-type ExportFormat = 'png' | 'jpeg' | 'svg';
+type ExportFormat = 'png' | 'jpeg' | 'webp' | 'svg' | 'pdf';
 
 export function render(markdown: string) {
   return markdown.trim();
@@ -39,18 +39,17 @@ $$
 \`\`\`mermaid
 flowchart LR
   A[Markdown] --> B[Preview]
-  B --> C[PNG/JPEG/SVG]
+  B --> C[PNG/JPEG/WebP/SVG/PDF]
 \`\`\`
 `;
 
 export const DEFAULT_DOCUMENT_STATE: DocumentState = {
   markdown: DEFAULT_MARKDOWN,
-  themeId: 'github',
+  themeId: 'claude',
   width: 720,
   padding: 48,
   radius: 18,
   fontScale: 1,
-  pixelRatio: 2,
   background: '#ffffff',
   allowRawHtml: false,
 };
@@ -80,7 +79,6 @@ export const useEditorStore = create<EditorStore>()(
         padding: state.padding,
         radius: state.radius,
         fontScale: state.fontScale,
-        pixelRatio: state.pixelRatio,
         background: state.background,
         allowRawHtml: state.allowRawHtml,
       }),

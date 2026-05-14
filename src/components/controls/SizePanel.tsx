@@ -46,28 +46,6 @@ export function SizePanel() {
           suffix="x"
           onChange={(fontScale) => updateSettings({ fontScale })}
         />
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-xs font-medium text-slate-600">像素倍率</span>
-            <span className="font-mono text-xs text-slate-500">{state.pixelRatio}x</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[1, 2, 3].map((ratio) => (
-              <button
-                key={ratio}
-                type="button"
-                onClick={() => updateSettings({ pixelRatio: ratio })}
-                className={`h-9 rounded-md border text-sm font-medium ${
-                  state.pixelRatio === ratio
-                    ? 'border-teal-700 bg-teal-700 text-white'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
-                }`}
-              >
-                {ratio}x
-              </button>
-            ))}
-          </div>
-        </div>
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs font-medium text-slate-600">背景</span>
           <input

@@ -59,6 +59,39 @@ describe('waitForPreviewReady', () => {
     });
   });
 
+  it('rejects when a local image reference cannot be resolved before export', async () => {
+    const root = document.createElement('div');
+    Object.defineProperty(root, 'scrollHeight', { configurable: true, value: 600 });
+    const placeholder = document.createElement('span');
+    placeholder.className = 'sharkdown-local-image-missing';
+    root.append(placeholder);
+
+    await expect(waitForPreviewReady(root)).rejects.toMatchObject({
+      code: 'IMAGE_LOAD_FAILED',
+    });
+  });
+
+  it('times out while local image references are still resolving', async () => {
+    vi.useFakeTimers();
+    try {
+      const root = document.createElement('div');
+      Object.defineProperty(root, 'scrollHeight', { configurable: true, value: 600 });
+      const placeholder = document.createElement('span');
+      placeholder.className = 'sharkdown-local-image-loading';
+      root.append(placeholder);
+
+      const ready = waitForPreviewReady(root, { timeoutMs: 500 });
+      const expectation = expect(ready).rejects.toMatchObject({
+        code: 'IMAGE_TIMEOUT',
+      });
+      await vi.advanceTimersByTimeAsync(501);
+
+      await expectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('times out if Mermaid never finishes rendering', async () => {
     vi.useFakeTimers();
     const root = document.createElement('div');

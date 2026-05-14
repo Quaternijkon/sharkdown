@@ -1,4 +1,6 @@
 export const MAX_EXPORT_HEIGHT = 16000;
+const LOCAL_IMAGE_LOADING_SELECTOR = '.sharkdown-local-image-loading';
+const LOCAL_IMAGE_MISSING_SELECTOR = '.sharkdown-local-image-missing';
 
 export type PreviewReadinessCode =
   | 'CONTENT_TOO_TALL'
@@ -36,6 +38,7 @@ export async function waitForPreviewReady(
   }
 
   await waitForFonts();
+  await waitForLocalImages(element, timeoutMs);
   await waitForImages(element, timeoutMs);
   await waitForMermaid(element, timeoutMs);
   await nextFrame();
@@ -102,6 +105,68 @@ function waitForImages(element: HTMLElement, timeoutMs: number): Promise<void> {
         image.removeEventListener('error', handleError);
       });
     }
+  });
+}
+
+function waitForLocalImages(element: HTMLElement, timeoutMs: number): Promise<void> {
+  const missing = element.querySelector(LOCAL_IMAGE_MISSING_SELECTOR);
+  if (missing) {
+    return Promise.reject(
+      new PreviewReadinessError(
+        'IMAGE_LOAD_FAILED',
+        `本地图片未找到：${missing.textContent?.trim() || '未知图片'}。请重新插入该图片后再导出。`,
+      ),
+    );
+  }
+
+  if (!element.querySelector(LOCAL_IMAGE_LOADING_SELECTOR)) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const observer = new MutationObserver(check);
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new PreviewReadinessError('IMAGE_TIMEOUT', '本地图片仍在加载中，请稍后再导出。'));
+    }, timeoutMs);
+
+    function cleanup() {
+      settled = true;
+      window.clearTimeout(timeout);
+      observer.disconnect();
+    }
+
+    function check() {
+      if (settled) {
+        return;
+      }
+
+      const nextMissing = element.querySelector(LOCAL_IMAGE_MISSING_SELECTOR);
+      if (nextMissing) {
+        cleanup();
+        reject(
+          new PreviewReadinessError(
+            'IMAGE_LOAD_FAILED',
+            `本地图片未找到：${nextMissing.textContent?.trim() || '未知图片'}。请重新插入该图片后再导出。`,
+          ),
+        );
+        return;
+      }
+
+      if (!element.querySelector(LOCAL_IMAGE_LOADING_SELECTOR)) {
+        cleanup();
+        resolve();
+      }
+    }
+
+    observer.observe(element, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+    });
+    check();
   });
 }
 
