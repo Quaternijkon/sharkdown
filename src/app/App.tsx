@@ -1,15 +1,19 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { ExportPanel } from '../components/controls/ExportPanel';
+import { DocumentLibraryPanel } from '../components/library/DocumentLibraryPanel';
 import { SizePanel } from '../components/controls/SizePanel';
 import { ThemePanel } from '../components/controls/ThemePanel';
 import { MarkdownEditor } from '../components/editor/MarkdownEditor';
 import { PreviewFrame } from '../components/preview/PreviewFrame';
+import { SharePanel } from '../components/share/SharePanel';
+import { TemplatePanel } from '../components/templates/TemplatePanel';
 import { ClipboardImageError, copyBlobToClipboard } from '../export/clipboard';
 import { exportExtension, exportPreviewAsBlob } from '../export/exportImage';
 import { exportPreviewAsPdf } from '../export/pdfExport';
 import { exportSlicedPng } from '../export/sliceLongImage';
 import { PreviewReadinessError } from '../export/waitForAssets';
+import { SharePayloadError, readSharePayloadFromHash } from '../share/urlShare';
 import { useEditorStore } from '../store/useEditorStore';
 import type { ImageExportSettings, PdfExportSettings } from '../types';
 import { createExportFileName, downloadBlob } from '../utils/download';
@@ -24,6 +28,8 @@ interface Notice {
 export function App() {
   const previewRef = useRef<HTMLDivElement>(null);
   const background = useEditorStore((state) => state.background);
+  const setMarkdown = useEditorStore((state) => state.setMarkdown);
+  const updateSettings = useEditorStore((state) => state.updateSettings);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>({
     message: 'Ready',
@@ -33,6 +39,24 @@ export function App() {
   function showNotice(message: string, tone: NoticeTone = 'info') {
     setNotice({ message, tone });
   }
+
+  useEffect(() => {
+    try {
+      const payload = readSharePayloadFromHash(window.location.hash);
+      if (!payload) {
+        return;
+      }
+      setMarkdown(payload.markdown);
+      updateSettings({ themeId: payload.themeId });
+      window.setTimeout(() => showNotice(`已从分享链接导入：${payload.title}`, 'success'), 0);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (err) {
+      window.setTimeout(
+        () => showNotice(err instanceof SharePayloadError ? err.message : '分享链接导入失败。', 'error'),
+        0,
+      );
+    }
+  }, [setMarkdown, updateSettings]);
 
   async function runExport(task: () => Promise<void>) {
     if (!previewRef.current) {
@@ -124,7 +148,7 @@ export function App() {
           </div>
           <div>
             <h1 className="text-lg font-semibold leading-tight">Sharkdown</h1>
-            <div className="text-xs text-slate-300">Markdown 转图片</div>
+            <div className="text-xs text-slate-300">离线 Markdown 分享工作台</div>
           </div>
         </div>
         <div
@@ -140,8 +164,11 @@ export function App() {
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 xl:grid-cols-[minmax(320px,0.86fr)_minmax(420px,1.2fr)_320px]">
-        <MarkdownEditor onNotice={showNotice} />
+      <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 xl:grid-cols-[minmax(320px,0.86fr)_minmax(420px,1.2fr)_340px]">
+        <div className="flex min-h-0 flex-col gap-3">
+          <DocumentLibraryPanel onNotice={showNotice} />
+          <MarkdownEditor onNotice={showNotice} />
+        </div>
         <PreviewFrame ref={previewRef} />
         <aside className="flex min-h-0 flex-col gap-3 overflow-auto">
           <ThemePanel />
@@ -154,6 +181,8 @@ export function App() {
             onSliceExport={handleSliceExport}
             onPdfDownload={handlePdfDownload}
           />
+          <SharePanel previewRef={previewRef} onNotice={showNotice} />
+          <TemplatePanel onNotice={showNotice} />
         </aside>
       </main>
     </div>

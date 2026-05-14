@@ -62,6 +62,16 @@ export async function saveLocalImageAsset(file: File): Promise<LocalImageReferen
   return { id, fileName };
 }
 
+export async function saveLocalImageAssetRecord(asset: LocalImageAsset): Promise<void> {
+  await putAsset({
+    ...asset,
+    fileName: sanitizeImageFileName(asset.fileName),
+    type: asset.type || asset.blob.type || 'application/octet-stream',
+    size: asset.size || asset.blob.size,
+    updatedAt: asset.updatedAt || Date.now(),
+  });
+}
+
 export async function getLocalImageAsset(id: string): Promise<LocalImageAsset | null> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
