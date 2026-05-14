@@ -1,17 +1,14 @@
 /* global self, caches, URL, fetch */
 
-const CACHE_NAME = 'sharkdown-static-v2';
+const CACHE_NAME = 'sharkdown-static-v3';
+const APP_SHELL = [
+  self.registration.scope,
+  `${self.registration.scope}manifest.webmanifest`,
+  `${self.registration.scope}icon.svg`,
+];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([
-        self.registration.scope,
-        `${self.registration.scope}manifest.webmanifest`,
-        `${self.registration.scope}icon.svg`,
-      ]),
-    ),
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
@@ -35,6 +32,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => cacheShellResponse(request, response))
+        .catch(() => cachedShellFallback(request)),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) {
@@ -52,3 +58,17 @@ self.addEventListener('fetch', (event) => {
     }),
   );
 });
+
+function cacheShellResponse(request, response) {
+  if (response.ok) {
+    caches.open(CACHE_NAME).then((cache) => {
+      cache.put(request, response.clone());
+      cache.put(self.registration.scope, response.clone());
+    });
+  }
+  return response;
+}
+
+function cachedShellFallback(request) {
+  return caches.match(request).then((cached) => cached || caches.match(self.registration.scope));
+}
