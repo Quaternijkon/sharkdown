@@ -2,6 +2,17 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [0.3.1] - 2026-05-15
+
+### Fixed
+
+- Document library JSON backups now include referenced `local-image://` assets when those assets still exist in the browser IndexedDB cache, so local backups can restore Markdown documents with embedded local images during browser backup or device migration.
+- Document library backup import now restores bundled local image assets before merging documents, preventing restored documents from showing broken local-image references after migration.
+
+### Compatibility
+
+- Still a static offline-first browser app. The backup file remains a user-triggered local JSON download/upload and no backend, sync account, telemetry, or upload flow is introduced.
+
 ## [0.3.0] - 2026-05-15
 
 ### Added

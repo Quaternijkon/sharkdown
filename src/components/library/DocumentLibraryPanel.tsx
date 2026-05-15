@@ -15,11 +15,13 @@ import { ToolbarButton } from '../common/Toolbar';
 import {
   archivedDocuments as listArchivedDocuments,
   hasUnsavedDocumentChanges,
+  parseLibraryBackup,
   serializeLibraryBackup,
   type SharkdownLibraryDocument,
 } from '../../library/documentLibrary';
 import { useLibraryStore } from '../../library/useLibraryStore';
 import { DEFAULT_DOCUMENT_STATE, useEditorStore } from '../../store/useEditorStore';
+import { collectLocalImageAssets, restoreProjectAssets, type SharkdownProjectAsset } from '../../share/projectPackage';
 import type { DocumentState } from '../../types';
 import { createExportFileName, downloadBlob } from '../../utils/download';
 import { APP_VERSION } from '../../version';
@@ -121,26 +123,36 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
   }
 
   function exportLibrary() {
-    const backup = serializeLibraryBackup(library, { appVersion: APP_VERSION });
-    downloadBlob(new Blob([backup], { type: 'application/json;charset=utf-8' }), createExportFileName('json', 'library'));
-    onNotice('文档库备份已生成。', 'success');
+    void runLibraryTask(async () => {
+      const assets = await collectLibraryAssets(library.documents);
+      const backup = serializeLibraryBackup(library, { appVersion: APP_VERSION, assets });
+      downloadBlob(
+        new Blob([backup], { type: 'application/json;charset=utf-8' }),
+        createExportFileName('json', 'library'),
+      );
+      onNotice(assets.length ? `文档库备份已生成，包含 ${assets.length} 个本地图片资产。` : '文档库备份已生成。', 'success');
+    });
   }
 
   function importLibrary(file: File) {
-    void file
-      .text()
-      .then((raw) => {
-        const result = importLibraryBackup(raw);
-        onNotice(`已导入文档库：新增 ${result.imported}，更新 ${result.updated}，跳过 ${result.skipped}。`, 'success');
-      })
-      .catch((error: unknown) => {
-        onNotice(error instanceof Error ? error.message : '文档库导入失败。', 'error');
-      })
-      .finally(() => {
-        if (importInputRef.current) {
-          importInputRef.current.value = '';
-        }
-      });
+    void runLibraryTask(async () => {
+      const raw = await file.text();
+      const backup = parseLibraryBackup(raw);
+      if (backup.assets?.length) {
+        await restoreProjectAssets(backup.assets);
+      }
+      const result = importLibraryBackup(raw);
+      onNotice(
+        `已导入文档库：新增 ${result.imported}，更新 ${result.updated}，跳过 ${result.skipped}${
+          backup.assets?.length ? `，恢复 ${backup.assets.length} 个本地图片` : ''
+        }。`,
+        'success',
+      );
+    }).finally(() => {
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
+    });
   }
 
   function archiveSelectedDocument() {
@@ -186,6 +198,14 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
   function applyDocument(document: Pick<SharkdownLibraryDocument, 'markdown' | 'state'>) {
     setMarkdown(document.markdown);
     updateSettings(document.state);
+  }
+
+  async function runLibraryTask(task: () => Promise<void>) {
+    try {
+      await task();
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '文档库操作失败。', 'error');
+    }
   }
 
   return (
@@ -406,6 +426,15 @@ function formatDate(value: string): string {
     month: '2-digit',
     day: '2-digit',
   });
+}
+
+async function collectLibraryAssets(documents: SharkdownLibraryDocument[]): Promise<SharkdownProjectAsset[]> {
+  const assetsById = new Map<string, SharkdownProjectAsset>();
+  for (const document of documents) {
+    const assets = await collectLocalImageAssets(document.markdown);
+    assets.forEach((asset) => assetsById.set(asset.id, asset));
+  }
+  return Array.from(assetsById.values());
 }
 
 function initialSelectedDocument(): SharkdownLibraryDocument | undefined {

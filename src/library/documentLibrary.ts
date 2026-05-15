@@ -1,4 +1,5 @@
 import type { DocumentState } from '../types';
+import type { SharkdownProjectAsset } from '../share/projectPackage';
 
 export const LIBRARY_VERSION = 2;
 export const LIBRARY_STORAGE_KEY = 'sharkdown-library-v2';
@@ -28,6 +29,7 @@ export interface SharkdownLibraryBackup {
   exportedAt: string;
   appVersion?: string;
   library: SharkdownLibrary;
+  assets?: SharkdownProjectAsset[];
 }
 
 export interface ImportLibraryResult {
@@ -172,7 +174,7 @@ export function archivedDocuments(library: SharkdownLibrary): SharkdownLibraryDo
 
 export function serializeLibraryBackup(
   library: SharkdownLibrary,
-  options: { exportedAt?: string; appVersion?: string } = {},
+  options: { exportedAt?: string; appVersion?: string; assets?: SharkdownProjectAsset[] } = {},
 ): string {
   const backup: SharkdownLibraryBackup = {
     format: LIBRARY_BACKUP_FORMAT,
@@ -180,6 +182,7 @@ export function serializeLibraryBackup(
     exportedAt: options.exportedAt ?? new Date().toISOString(),
     appVersion: options.appVersion,
     library: normalizeLibrary(library),
+    assets: options.assets,
   };
   return JSON.stringify(backup, null, 2);
 }
@@ -205,6 +208,7 @@ export function parseLibraryBackup(raw: string): SharkdownLibraryBackup {
     exportedAt: parsed.exportedAt,
     appVersion: typeof parsed.appVersion === 'string' ? parsed.appVersion : undefined,
     library: normalizeLibrary(parsed.library),
+    assets: Array.isArray(parsed.assets) ? normalizeAssets(parsed.assets) : undefined,
   };
 }
 
@@ -320,6 +324,21 @@ function normalizeDocument(value: unknown): SharkdownLibraryDocument | undefined
     updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : now,
     archivedAt: typeof value.archivedAt === 'string' ? value.archivedAt : undefined,
   };
+}
+
+function normalizeAssets(value: unknown[]): SharkdownProjectAsset[] {
+  return value.filter(isBackupAsset);
+}
+
+function isBackupAsset(value: unknown): value is SharkdownProjectAsset {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.fileName === 'string' &&
+    typeof value.mimeType === 'string' &&
+    typeof value.size === 'number' &&
+    typeof value.dataUrl === 'string'
+  );
 }
 
 function sortByUpdatedAtDesc(a: SharkdownLibraryDocument, b: SharkdownLibraryDocument): number {

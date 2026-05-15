@@ -113,6 +113,15 @@ describe('local document library', () => {
     const backup = serializeLibraryBackup(incomingLibrary, {
       exportedAt: '2026-05-15T00:02:00.000Z',
       appVersion: '0.2.0-test',
+      assets: [
+        {
+          id: 'img_1',
+          fileName: 'diagram.png',
+          mimeType: 'image/png',
+          size: 12,
+          dataUrl: 'data:image/png;base64,AA==',
+        },
+      ],
     });
     const result = importLibraryBackup(localLibrary, backup);
 
@@ -121,6 +130,15 @@ describe('local document library', () => {
       version: 1,
       exportedAt: '2026-05-15T00:02:00.000Z',
       appVersion: '0.2.0-test',
+      assets: [
+        {
+          id: 'img_1',
+          fileName: 'diagram.png',
+          mimeType: 'image/png',
+          size: 12,
+          dataUrl: 'data:image/png;base64,AA==',
+        },
+      ],
     });
     expect(result.imported).toBe(1);
     expect(result.updated).toBe(1);
