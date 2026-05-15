@@ -1,7 +1,7 @@
 import type { DocumentState } from '../types';
 import type { SharkdownProjectAsset } from '../share/projectPackage';
 
-export const LIBRARY_VERSION = 2;
+export const LIBRARY_VERSION = 3;
 export const LIBRARY_STORAGE_KEY = 'sharkdown-library-v2';
 export const LIBRARY_BACKUP_FORMAT = 'sharkdown-library';
 export const LIBRARY_BACKUP_VERSION = 1;
@@ -12,15 +12,36 @@ export interface SharkdownLibraryDocument {
   markdown: string;
   state: DocumentState;
   tags: string[];
+  folderId?: string;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
 }
 
+export interface SharkdownLibraryFolder {
+  id: string;
+  name: string;
+  parentId?: string;
+  createdAt: string;
+  updatedAt: string;
+  collapsed?: boolean;
+}
+
 export interface SharkdownLibrary {
   version: typeof LIBRARY_VERSION;
+  folders: SharkdownLibraryFolder[];
   documents: SharkdownLibraryDocument[];
   currentDocumentId?: string;
+}
+
+export interface SharkdownLibraryTree {
+  rootDocuments: SharkdownLibraryDocument[];
+  folders: SharkdownLibraryFolderNode[];
+}
+
+export interface SharkdownLibraryFolderNode extends SharkdownLibraryFolder {
+  documents: SharkdownLibraryDocument[];
+  children: SharkdownLibraryFolderNode[];
 }
 
 export interface SharkdownLibraryBackup {
@@ -45,12 +66,21 @@ export interface CreateDocumentInput {
   markdown: string;
   state: DocumentState;
   tags: string[];
+  folderId?: string;
+  now?: string;
+}
+
+export interface CreateFolderInput {
+  id?: string;
+  name: string;
+  parentId?: string;
   now?: string;
 }
 
 export function createEmptyLibrary(): SharkdownLibrary {
   return {
     version: LIBRARY_VERSION,
+    folders: [],
     documents: [],
   };
 }
@@ -63,15 +93,89 @@ export function createDocumentFromState(input: CreateDocumentInput): SharkdownLi
     markdown: input.markdown,
     state: input.state,
     tags: uniqueTags(input.tags),
+    folderId: input.folderId,
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+export function createFolder(library: SharkdownLibrary, input: CreateFolderInput): SharkdownLibrary {
+  const normalized = normalizeLibrary(library);
+  const now = input.now ?? new Date().toISOString();
+  const folder: SharkdownLibraryFolder = {
+    id: input.id ?? createFolderId(),
+    name: normalizeFolderName(input.name),
+    parentId: input.parentId && normalized.folders.some((item) => item.id === input.parentId) ? input.parentId : undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+  return {
+    ...normalized,
+    folders: [...normalized.folders, folder],
+  };
+}
+
+export function renameFolder(
+  library: SharkdownLibrary,
+  folderId: string,
+  name: string,
+  now = new Date().toISOString(),
+): SharkdownLibrary {
+  const normalized = normalizeLibrary(library);
+  return {
+    ...normalized,
+    folders: normalized.folders.map((folder) =>
+      folder.id === folderId ? { ...folder, name: normalizeFolderName(name), updatedAt: now } : folder,
+    ),
+  };
+}
+
+export function deleteFolder(library: SharkdownLibrary, folderId: string): SharkdownLibrary {
+  const normalized = normalizeLibrary(library);
+  const removedFolderIds = collectDescendantFolderIds(normalized.folders, folderId);
+  if (!removedFolderIds.size) {
+    return normalized;
+  }
+  return {
+    ...normalized,
+    folders: normalized.folders.filter((folder) => !removedFolderIds.has(folder.id)),
+    documents: normalized.documents.map((document) =>
+      document.folderId && removedFolderIds.has(document.folderId)
+        ? { ...document, folderId: undefined, updatedAt: new Date().toISOString() }
+        : document,
+    ),
+  };
+}
+
+export function toggleFolderCollapsed(library: SharkdownLibrary, folderId: string): SharkdownLibrary {
+  const normalized = normalizeLibrary(library);
+  return {
+    ...normalized,
+    folders: normalized.folders.map((folder) =>
+      folder.id === folderId ? { ...folder, collapsed: !folder.collapsed, updatedAt: new Date().toISOString() } : folder,
+    ),
+  };
+}
+
+export function moveDocumentToFolder(
+  library: SharkdownLibrary,
+  documentId: string,
+  folderId: string | undefined,
+): SharkdownLibrary {
+  const normalized = normalizeLibrary(library);
+  const targetFolderId = folderId && normalized.folders.some((folder) => folder.id === folderId) ? folderId : undefined;
+  return {
+    ...normalized,
+    documents: normalized.documents.map((document) =>
+      document.id === documentId ? { ...document, folderId: targetFolderId, updatedAt: new Date().toISOString() } : document,
+    ),
   };
 }
 
 export function updateDocumentContent(
   library: SharkdownLibrary,
   documentId: string,
-  patch: SharkdownLibraryDocument | Partial<Pick<SharkdownLibraryDocument, 'title' | 'markdown' | 'state' | 'tags'>> & {
+  patch: SharkdownLibraryDocument | Partial<Pick<SharkdownLibraryDocument, 'title' | 'markdown' | 'state' | 'tags' | 'folderId'>> & {
     now?: string;
   },
 ): SharkdownLibrary {
@@ -89,6 +193,7 @@ export function updateDocumentContent(
     markdown: patch.markdown ?? existing?.markdown ?? '',
     state,
     tags: uniqueTags(patch.tags ?? existing?.tags ?? []),
+    folderId: patchDocument.folderId ?? existing?.folderId,
     createdAt: existing?.createdAt ?? patchDocument.createdAt ?? now,
     updatedAt: now,
     archivedAt: existing?.archivedAt,
@@ -172,6 +277,54 @@ export function archivedDocuments(library: SharkdownLibrary): SharkdownLibraryDo
   return library.documents.filter((document) => document.archivedAt).sort(sortByUpdatedAtDesc);
 }
 
+export function buildLibraryTree(library: SharkdownLibrary, query: string): SharkdownLibraryTree {
+  const normalized = normalizeLibrary(library);
+  const normalizedQuery = query.trim().toLowerCase();
+  const matches = (document: SharkdownLibraryDocument) =>
+    !document.archivedAt &&
+    (!normalizedQuery ||
+      [document.title, document.markdown, document.tags.join(' ')].join('\n').toLowerCase().includes(normalizedQuery));
+  const visibleDocuments = normalized.documents.filter(matches).sort(sortByUpdatedAtDesc);
+  const foldersById = new Map<string, SharkdownLibraryFolderNode>();
+  normalized.folders.forEach((folder) => {
+    foldersById.set(folder.id, { ...folder, documents: [], children: [] });
+  });
+
+  const rootFolders: SharkdownLibraryFolderNode[] = [];
+  foldersById.forEach((folder) => {
+    if (folder.parentId && foldersById.has(folder.parentId)) {
+      foldersById.get(folder.parentId)?.children.push(folder);
+      return;
+    }
+    rootFolders.push(folder);
+  });
+
+  const rootDocuments: SharkdownLibraryDocument[] = [];
+  visibleDocuments.forEach((document) => {
+    if (document.folderId && foldersById.has(document.folderId)) {
+      foldersById.get(document.folderId)?.documents.push(document);
+      return;
+    }
+    rootDocuments.push(document);
+  });
+
+  const sortNode = (node: SharkdownLibraryFolderNode) => {
+    node.children.sort(sortFoldersByName).forEach(sortNode);
+    node.documents.sort(sortByUpdatedAtDesc);
+  };
+  rootFolders.sort(sortFoldersByName).forEach(sortNode);
+
+  if (!normalizedQuery) {
+    return { rootDocuments, folders: rootFolders };
+  }
+  return {
+    rootDocuments,
+    folders: rootFolders
+      .map((node) => filterTreeNode(node, normalizedQuery))
+      .filter((node): node is SharkdownLibraryFolderNode => node !== undefined),
+  };
+}
+
 export function serializeLibraryBackup(
   library: SharkdownLibrary,
   options: { exportedAt?: string; appVersion?: string; assets?: SharkdownProjectAsset[] } = {},
@@ -249,6 +402,7 @@ export function importLibraryBackup(currentLibrary: SharkdownLibrary, raw: strin
   return {
     library: {
       version: LIBRARY_VERSION,
+      folders: mergeFolders(current.folders, incoming.folders),
       documents,
       currentDocumentId,
     },
@@ -256,6 +410,20 @@ export function importLibraryBackup(currentLibrary: SharkdownLibrary, raw: strin
     updated,
     skipped,
   };
+}
+
+function mergeFolders(
+  currentFolders: SharkdownLibraryFolder[],
+  incomingFolders: SharkdownLibraryFolder[],
+): SharkdownLibraryFolder[] {
+  const foldersById = new Map(currentFolders.map((folder) => [folder.id, folder]));
+  incomingFolders.forEach((folder) => {
+    const existing = foldersById.get(folder.id);
+    if (!existing || new Date(folder.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+      foldersById.set(folder.id, folder);
+    }
+  });
+  return Array.from(foldersById.values()).sort(sortFoldersByName);
 }
 
 export function hasUnsavedDocumentChanges(
@@ -284,7 +452,7 @@ export function loadLibrary(): SharkdownLibrary {
       return createEmptyLibrary();
     }
     const parsed = JSON.parse(raw) as Partial<SharkdownLibrary>;
-    if (parsed.version !== LIBRARY_VERSION || !Array.isArray(parsed.documents)) {
+    if (!Array.isArray(parsed.documents)) {
       return createEmptyLibrary();
     }
     return normalizeLibrary(parsed);
@@ -300,8 +468,24 @@ function normalizeLibrary(value: unknown): SharkdownLibrary {
 
   return {
     version: LIBRARY_VERSION,
+    folders: Array.isArray(value.folders) ? value.folders.map(normalizeFolder).filter((folder) => folder !== undefined) : [],
     documents: value.documents.map(normalizeDocument).filter((document) => document !== undefined),
     currentDocumentId: typeof value.currentDocumentId === 'string' ? value.currentDocumentId : undefined,
+  };
+}
+
+function normalizeFolder(value: unknown): SharkdownLibraryFolder | undefined {
+  if (!isRecord(value) || typeof value.id !== 'string') {
+    return undefined;
+  }
+  const now = new Date().toISOString();
+  return {
+    id: value.id,
+    name: normalizeFolderName(typeof value.name === 'string' ? value.name : '未命名文件夹'),
+    parentId: typeof value.parentId === 'string' ? value.parentId : undefined,
+    createdAt: typeof value.createdAt === 'string' ? value.createdAt : now,
+    updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : now,
+    collapsed: typeof value.collapsed === 'boolean' ? value.collapsed : undefined,
   };
 }
 
@@ -320,6 +504,7 @@ function normalizeDocument(value: unknown): SharkdownLibraryDocument | undefined
     markdown: value.markdown,
     state,
     tags: Array.isArray(value.tags) ? uniqueTags(value.tags.filter((tag): tag is string => typeof tag === 'string')) : [],
+    folderId: typeof value.folderId === 'string' ? value.folderId : undefined,
     createdAt: typeof value.createdAt === 'string' ? value.createdAt : now,
     updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : now,
     archivedAt: typeof value.archivedAt === 'string' ? value.archivedAt : undefined,
@@ -345,6 +530,24 @@ function sortByUpdatedAtDesc(a: SharkdownLibraryDocument, b: SharkdownLibraryDoc
   return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
 }
 
+function sortFoldersByName(a: SharkdownLibraryFolder, b: SharkdownLibraryFolder): number {
+  return a.name.localeCompare(b.name, 'zh-CN');
+}
+
+function filterTreeNode(
+  node: SharkdownLibraryFolderNode,
+  normalizedQuery: string,
+): SharkdownLibraryFolderNode | undefined {
+  const children = node.children
+    .map((child) => filterTreeNode(child, normalizedQuery))
+    .filter((child): child is SharkdownLibraryFolderNode => child !== undefined);
+  const matchesFolderName = node.name.toLowerCase().includes(normalizedQuery);
+  if (node.documents.length === 0 && children.length === 0 && !matchesFolderName) {
+    return undefined;
+  }
+  return { ...node, children };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -360,4 +563,28 @@ function uniqueTags(tags: string[]): string[] {
 
 function createDocumentId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `doc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+}
+
+function createFolderId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `folder_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizeFolderName(name: string): string {
+  return name.trim() || '未命名文件夹';
+}
+
+function collectDescendantFolderIds(folders: SharkdownLibraryFolder[], folderId: string): Set<string> {
+  const removed = new Set<string>();
+  const visit = (id: string) => {
+    if (removed.has(id)) {
+      return;
+    }
+    if (!folders.some((folder) => folder.id === id)) {
+      return;
+    }
+    removed.add(id);
+    folders.filter((folder) => folder.parentId === id).forEach((folder) => visit(folder.id));
+  };
+  visit(folderId);
+  return removed;
 }

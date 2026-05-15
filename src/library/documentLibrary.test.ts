@@ -5,10 +5,15 @@ import {
   archiveDocument,
   createDocumentFromState,
   createEmptyLibrary,
+  createFolder,
+  buildLibraryTree,
+  deleteFolder,
   importLibraryBackup,
   duplicateDocument,
   hasUnsavedDocumentChanges,
   loadLibrary,
+  moveDocumentToFolder,
+  renameFolder,
   restoreDocument,
   saveLibrary,
   searchDocuments,
@@ -70,7 +75,75 @@ describe('local document library', () => {
     saveLibrary(library);
 
     expect(loadLibrary().documents[0]?.title).toBe('Stored');
-    expect(loadLibrary().version).toBe(2);
+    expect(loadLibrary().version).toBe(3);
+  });
+
+  it('organizes documents in a virtual folder tree', () => {
+    const folder = createFolder(createEmptyLibrary(), {
+      id: 'folder_work',
+      name: 'Work',
+      now: '2026-05-15T00:00:00.000Z',
+    });
+    const renamed = renameFolder(folder, 'folder_work', 'Work Notes', '2026-05-15T00:01:00.000Z');
+    const document = createDocumentFromState({
+      id: 'doc_work',
+      title: 'Weekly',
+      markdown: '# Weekly',
+      state: DEFAULT_DOCUMENT_STATE,
+      tags: [],
+      now: '2026-05-15T00:02:00.000Z',
+    });
+    const withDocument = updateDocumentContent(renamed, document.id, document);
+    const moved = moveDocumentToFolder(withDocument, document.id, 'folder_work');
+    const tree = buildLibraryTree(moved, '');
+
+    expect(moved.folders[0]).toMatchObject({ id: 'folder_work', name: 'Work Notes' });
+    expect(moved.documents[0]?.folderId).toBe('folder_work');
+    expect(tree.folders[0]?.documents[0]?.title).toBe('Weekly');
+    expect(tree.rootDocuments).toHaveLength(0);
+  });
+
+  it('removes a virtual folder without deleting its documents', () => {
+    const libraryWithFolder = createFolder(createEmptyLibrary(), {
+      id: 'folder_archive',
+      name: 'Archive',
+      now: '2026-05-15T00:00:00.000Z',
+    });
+    const libraryWithChild = createFolder(libraryWithFolder, {
+      id: 'folder_child',
+      name: 'Child',
+      parentId: 'folder_archive',
+      now: '2026-05-15T00:01:00.000Z',
+    });
+    const document = createDocumentFromState({
+      id: 'doc_nested',
+      title: 'Nested',
+      markdown: '# Nested',
+      state: DEFAULT_DOCUMENT_STATE,
+      tags: [],
+      folderId: 'folder_child',
+      now: '2026-05-15T00:02:00.000Z',
+    });
+    const withDocument = updateDocumentContent(libraryWithChild, document.id, document);
+
+    const removed = deleteFolder(withDocument, 'folder_archive');
+
+    expect(removed.folders).toHaveLength(0);
+    expect(removed.documents[0]?.title).toBe('Nested');
+    expect(removed.documents[0]?.folderId).toBeUndefined();
+    expect(buildLibraryTree(removed, '').rootDocuments[0]?.id).toBe('doc_nested');
+  });
+
+  it('shows folders when the search query matches the folder name', () => {
+    const library = createFolder(createEmptyLibrary(), {
+      id: 'folder_research',
+      name: 'Research Inbox',
+      now: '2026-05-15T00:00:00.000Z',
+    });
+
+    const tree = buildLibraryTree(library, 'research');
+
+    expect(tree.folders[0]?.name).toBe('Research Inbox');
   });
 
   it('exports and imports a portable library backup with newer imported documents winning conflicts', () => {

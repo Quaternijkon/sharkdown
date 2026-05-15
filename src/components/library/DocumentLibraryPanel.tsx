@@ -1,12 +1,19 @@
 import {
   Archive,
+  ChevronDown,
+  ChevronRight,
   Copy,
   Download,
+  FileText,
   FilePlus2,
+  Folder,
+  FolderPlus,
   FolderOpen,
+  Pencil,
   RotateCcw,
   Save,
   Search,
+  Trash2,
   Upload,
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
@@ -14,9 +21,11 @@ import { useMemo, useRef, useState } from 'react';
 import { ToolbarButton } from '../common/Toolbar';
 import {
   archivedDocuments as listArchivedDocuments,
+  buildLibraryTree,
   hasUnsavedDocumentChanges,
   parseLibraryBackup,
   serializeLibraryBackup,
+  type SharkdownLibraryFolderNode,
   type SharkdownLibraryDocument,
 } from '../../library/documentLibrary';
 import { useLibraryStore } from '../../library/useLibraryStore';
@@ -34,6 +43,8 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [titleInput, setTitleInput] = useState(() => initialSelectedDocument()?.title ?? '');
   const [tagInput, setTagInput] = useState(() => initialSelectedDocument()?.tags.join(', ') ?? '');
+  const [folderInput, setFolderInput] = useState('');
+  const [folderRenameDraft, setFolderRenameDraft] = useState<{ folderId?: string; name: string }>({ name: '' });
   const [showArchive, setShowArchive] = useState(false);
   const markdown = useEditorStore((state) => state.markdown);
   const editorState = useCurrentDocumentState();
@@ -41,8 +52,15 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
   const updateSettings = useEditorStore((state) => state.updateSettings);
   const library = useLibraryStore((state) => state.library);
   const selectedDocumentId = useLibraryStore((state) => state.selectedDocumentId);
+  const selectedFolderId = useLibraryStore((state) => state.selectedFolderId);
   const searchQuery = useLibraryStore((state) => state.searchQuery);
   const setSearchQuery = useLibraryStore((state) => state.setSearchQuery);
+  const selectFolder = useLibraryStore((state) => state.selectFolder);
+  const createFolder = useLibraryStore((state) => state.createFolder);
+  const renameFolder = useLibraryStore((state) => state.renameFolder);
+  const deleteFolder = useLibraryStore((state) => state.deleteFolder);
+  const moveDocumentToFolder = useLibraryStore((state) => state.moveDocumentToFolder);
+  const toggleFolderCollapsed = useLibraryStore((state) => state.toggleFolderCollapsed);
   const createDocument = useLibraryStore((state) => state.createDocument);
   const saveDocument = useLibraryStore((state) => state.saveDocument);
   const selectDocument = useLibraryStore((state) => state.selectDocument);
@@ -56,8 +74,15 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
     () => library.documents.find((document) => document.id === selectedDocumentId),
     [library.documents, selectedDocumentId],
   );
-  const activeDocuments = visibleDocuments();
+  const selectedFolder = useMemo(
+    () => library.folders.find((folder) => folder.id === selectedFolderId),
+    [library.folders, selectedFolderId],
+  );
+  const libraryTree = useMemo(() => buildLibraryTree(library, searchQuery), [library, searchQuery]);
   const archivedDocuments = useMemo(() => listArchivedDocuments(library), [library]);
+  const folderOptions = useMemo(() => flattenFolders(libraryTree.folders), [libraryTree.folders]);
+  const folderRenameValue =
+    selectedFolder && folderRenameDraft.folderId === selectedFolder.id ? folderRenameDraft.name : (selectedFolder?.name ?? '');
   const draftTags = parseTags(tagInput);
   const draftTitle = titleInput.trim() || extractTitle(markdown);
   const isDirty = hasUnsavedDocumentChanges(selectedDocument, {
@@ -78,6 +103,7 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
         markdown,
         state: editorState,
         tags,
+        folderId: selectedDocument?.folderId ?? selectedFolderId,
       });
       onNotice('当前文档已保存到本地文档库。', 'success');
       return;
@@ -87,6 +113,7 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
       markdown,
       state: editorState,
       tags,
+      folderId: selectedFolderId,
     });
     selectDocument(id);
     setTitleInput(title);
@@ -103,6 +130,7 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
       markdown: '',
       state,
       tags: [],
+      folderId: selectedFolderId,
     });
     selectDocument(id);
     applyDocument({ markdown: '', state });
@@ -163,6 +191,52 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
     setTitleInput('');
     setTagInput('');
     onNotice('文档已移入归档区。');
+  }
+
+  function createFolderFromInput() {
+    const name = folderInput.trim();
+    if (!name) {
+      onNotice('请输入文件夹名称。', 'error');
+      return;
+    }
+    const id = createFolder(name, selectedFolderId);
+    selectFolder(id);
+    setFolderInput('');
+    onNotice(`已创建文件夹：${name}`, 'success');
+  }
+
+  function renameSelectedFolder() {
+    if (!selectedFolder) {
+      return;
+    }
+    const name = folderRenameValue.trim();
+    if (!name) {
+      onNotice('请输入新的文件夹名称。', 'error');
+      return;
+    }
+    renameFolder(selectedFolder.id, name);
+    onNotice(`文件夹已重命名为：${name}`, 'success');
+  }
+
+  function deleteSelectedFolder() {
+    if (!selectedFolder) {
+      return;
+    }
+    const confirmed = window.confirm('移除该虚拟文件夹？内部文档会保留并移动到根目录。');
+    if (!confirmed) {
+      return;
+    }
+    deleteFolder(selectedFolder.id);
+    selectFolder(undefined);
+    onNotice('文件夹已移除，内部文档已保留到根目录。', 'success');
+  }
+
+  function moveSelectedDocumentToFolder(folderId: string) {
+    if (!selectedDocumentId) {
+      return;
+    }
+    moveDocumentToFolder(selectedDocumentId, folderId || undefined);
+    onNotice(folderId ? '文档已移动到所选文件夹。' : '文档已移动到根目录。', 'success');
   }
 
   function duplicateSelectedDocument() {
@@ -277,19 +351,98 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
           placeholder="标签，用逗号分隔"
           className="h-8 w-full rounded-md border border-slate-200 px-2 text-xs outline-none focus:border-slate-500"
         />
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <input
+            value={folderInput}
+            onChange={(event) => setFolderInput(event.target.value)}
+            placeholder="新建虚拟文件夹"
+            className="h-8 w-full rounded-md border border-slate-200 px-2 text-xs outline-none focus:border-slate-500"
+          />
+          <ToolbarButton icon={<FolderPlus size={16} />} label="新建虚拟文件夹" onClick={createFolderFromInput} />
+        </div>
+        {selectedFolder ? (
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-600">
+              <Folder size={14} />
+              <span className="min-w-0 truncate">当前文件夹：{selectedFolder.name}</span>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
+              <label className="min-w-0">
+                <span className="sr-only">文件夹新名称</span>
+                <input
+                  value={folderRenameValue}
+                  onChange={(event) => setFolderRenameDraft({ folderId: selectedFolder.id, name: event.target.value })}
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-500"
+                />
+              </label>
+              <ToolbarButton
+                icon={<Pencil size={15} />}
+                label="重命名选中文件夹"
+                onClick={renameSelectedFolder}
+              />
+              <ToolbarButton
+                icon={<Trash2 size={15} />}
+                label="移除选中文件夹"
+                tone="danger"
+                onClick={deleteSelectedFolder}
+              />
+            </div>
+          </div>
+        ) : null}
+        {selectedDocumentId ? (
+          <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 text-xs text-slate-600">
+            <span>位置</span>
+            <select
+              value={selectedDocument?.folderId ?? ''}
+              onChange={(event) => moveSelectedDocumentToFolder(event.target.value)}
+              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-500"
+            >
+              <option value="">根目录</option>
+              {folderOptions.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.depth > 0 ? `${'  '.repeat(folder.depth)}└ ` : ''}
+                  {folder.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        {activeDocuments.length === 0 ? (
+        {libraryTree.rootDocuments.length === 0 && libraryTree.folders.length === 0 ? (
           <div className="px-3 py-4 text-xs leading-5 text-slate-500">暂无文档，保存当前内容后会出现在这里。</div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {activeDocuments.map((document) => (
+            <button
+              type="button"
+              onClick={() => selectFolder(undefined)}
+              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium ${
+                selectedFolderId ? 'text-slate-600 hover:bg-slate-50' : 'bg-teal-50 text-teal-900'
+              }`}
+            >
+              <FolderOpen size={15} />
+              <span>根目录</span>
+              <span className="ml-auto text-[11px] text-slate-500">{libraryTree.rootDocuments.length}</span>
+            </button>
+            {libraryTree.rootDocuments.map((document) => (
               <DocumentRow
                 key={document.id}
                 document={document}
                 selected={selectedDocumentId === document.id}
                 onOpen={() => loadDocument(document)}
+              />
+            ))}
+            {libraryTree.folders.map((folder) => (
+              <FolderNode
+                key={folder.id}
+                folder={folder}
+                depth={0}
+                selectedFolderId={selectedFolderId}
+                selectedDocumentId={selectedDocumentId}
+                onSelectFolder={selectFolder}
+                onToggleFolder={toggleFolderCollapsed}
+                onOpenDocument={loadDocument}
               />
             ))}
           </div>
@@ -344,7 +497,7 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
           onClick={() => setShowArchive((value) => !value)}
         />
         <span className="ml-auto truncate text-xs text-slate-500">
-          {activeDocuments.length} 个文档
+          {visibleDocuments().length} 个文档
           {archivedDocuments.length ? ` / ${archivedDocuments.length} 个归档` : ''}
         </span>
       </div>
@@ -352,12 +505,88 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
   );
 }
 
+function FolderNode({
+  folder,
+  depth,
+  selectedFolderId,
+  selectedDocumentId,
+  onSelectFolder,
+  onToggleFolder,
+  onOpenDocument,
+}: {
+  folder: SharkdownLibraryFolderNode;
+  depth: number;
+  selectedFolderId: string | undefined;
+  selectedDocumentId: string | undefined;
+  onSelectFolder: (folderId: string | undefined) => void;
+  onToggleFolder: (folderId: string) => void;
+  onOpenDocument: (document: SharkdownLibraryDocument) => void;
+}) {
+  const itemCount = folder.documents.length + folder.children.length;
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-1 px-3 py-2 text-xs ${
+          selectedFolderId === folder.id ? 'bg-teal-50 text-teal-900' : 'text-slate-700 hover:bg-slate-50'
+        }`}
+        style={{ paddingLeft: `${12 + depth * 14}px` }}
+      >
+        <button
+          type="button"
+          className="inline-flex h-5 w-5 items-center justify-center rounded hover:bg-slate-200"
+          aria-label={folder.collapsed ? `展开文件夹：${folder.name}` : `折叠文件夹：${folder.name}`}
+          onClick={() => onToggleFolder(folder.id)}
+        >
+          {folder.collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelectFolder(folder.id)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          aria-label={`选择文件夹：${folder.name}`}
+        >
+          <Folder size={15} />
+          <span className="truncate font-medium">{folder.name}</span>
+        </button>
+        <span className="text-[11px] text-slate-500">{itemCount}</span>
+      </div>
+      {!folder.collapsed
+        ? folder.documents.map((document) => (
+            <DocumentRow
+              key={document.id}
+              document={document}
+              depth={depth + 1}
+              selected={selectedDocumentId === document.id}
+              onOpen={() => onOpenDocument(document)}
+            />
+          ))
+        : null}
+      {!folder.collapsed
+        ? folder.children.map((child) => (
+            <FolderNode
+              key={child.id}
+              folder={child}
+              depth={depth + 1}
+              selectedFolderId={selectedFolderId}
+              selectedDocumentId={selectedDocumentId}
+              onSelectFolder={onSelectFolder}
+              onToggleFolder={onToggleFolder}
+              onOpenDocument={onOpenDocument}
+            />
+          ))
+        : null}
+    </div>
+  );
+}
+
 function DocumentRow({
   document,
+  depth = 0,
   selected,
   onOpen,
 }: {
   document: SharkdownLibraryDocument;
+  depth?: number;
   selected: boolean;
   onOpen: () => void;
 }) {
@@ -367,9 +596,13 @@ function DocumentRow({
       onClick={onOpen}
       aria-label={`打开文档：${document.title}`}
       className={`block w-full px-3 py-2 text-left hover:bg-slate-50 ${selected ? 'bg-teal-50' : ''}`}
+      style={{ paddingLeft: `${12 + depth * 14}px` }}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-sm font-medium text-slate-800">{document.title}</span>
+        <span className="flex min-w-0 items-center gap-2 truncate text-sm font-medium text-slate-800">
+          <FileText size={14} />
+          <span className="truncate">{document.title}</span>
+        </span>
         <span className="shrink-0 text-[11px] text-slate-500">{formatDate(document.updatedAt)}</span>
       </div>
       <div className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-500">
@@ -380,6 +613,16 @@ function DocumentRow({
       </div>
     </button>
   );
+}
+
+function flattenFolders(
+  folders: SharkdownLibraryFolderNode[],
+  depth = 0,
+): Array<{ id: string; name: string; depth: number }> {
+  return folders.flatMap((folder) => [
+    { id: folder.id, name: folder.name, depth },
+    ...flattenFolders(folder.children, depth + 1),
+  ]);
 }
 
 function useCurrentDocumentState(): DocumentState {

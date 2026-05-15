@@ -4,12 +4,17 @@ import type { DocumentState } from '../types';
 import {
   archiveDocument as archiveLibraryDocument,
   createDocumentFromState,
+  createFolder as createLibraryFolder,
+  deleteFolder as deleteLibraryFolder,
   duplicateDocument as duplicateLibraryDocument,
   importLibraryBackup as importLibraryBackupData,
   loadLibrary,
+  moveDocumentToFolder as moveLibraryDocumentToFolder,
+  renameFolder as renameLibraryFolder,
   restoreDocument as restoreLibraryDocument,
   saveLibrary,
   searchDocuments,
+  toggleFolderCollapsed as toggleLibraryFolderCollapsed,
   updateDocumentContent,
   type ImportLibraryResult,
   type SharkdownLibrary,
@@ -21,6 +26,7 @@ interface CreateDocumentArgs {
   markdown: string;
   state: DocumentState;
   tags: string[];
+  folderId?: string;
 }
 
 interface SaveDocumentArgs {
@@ -28,13 +34,21 @@ interface SaveDocumentArgs {
   markdown: string;
   state: DocumentState;
   tags: string[];
+  folderId?: string;
 }
 
 interface LibraryStore {
   library: SharkdownLibrary;
   selectedDocumentId?: string;
+  selectedFolderId?: string;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  selectFolder: (folderId: string | undefined) => void;
+  createFolder: (name: string, parentId?: string) => string;
+  renameFolder: (folderId: string, name: string) => void;
+  deleteFolder: (folderId: string) => void;
+  toggleFolderCollapsed: (folderId: string) => void;
+  moveDocumentToFolder: (documentId: string, folderId: string | undefined) => void;
   createDocument: (input: CreateDocumentArgs) => string;
   saveDocument: (documentId: string, input: SaveDocumentArgs) => void;
   selectDocument: (documentId: string | undefined) => void;
@@ -50,8 +64,58 @@ const initialLibrary = loadLibrary();
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
   library: initialLibrary,
   selectedDocumentId: initialLibrary.currentDocumentId,
+  selectedFolderId: undefined,
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
+  selectFolder: (folderId) => set({ selectedFolderId: folderId }),
+  createFolder: (name, parentId) => {
+    let newId = '';
+    set((state) => {
+      const before = state.library.folders.length;
+      const library = createLibraryFolder(state.library, { name, parentId });
+      newId = library.folders[before]?.id ?? '';
+      saveLibrary(library);
+      return {
+        library,
+        selectedFolderId: newId || parentId,
+      };
+    });
+    return newId;
+  },
+  renameFolder: (folderId, name) => {
+    set((state) => {
+      const library = renameLibraryFolder(state.library, folderId, name);
+      saveLibrary(library);
+      return { library };
+    });
+  },
+  deleteFolder: (folderId) => {
+    set((state) => {
+      const library = deleteLibraryFolder(state.library, folderId);
+      saveLibrary(library);
+      return {
+        library,
+        selectedFolderId:
+          state.selectedFolderId && library.folders.some((folder) => folder.id === state.selectedFolderId)
+            ? state.selectedFolderId
+            : undefined,
+      };
+    });
+  },
+  toggleFolderCollapsed: (folderId) => {
+    set((state) => {
+      const library = toggleLibraryFolderCollapsed(state.library, folderId);
+      saveLibrary(library);
+      return { library };
+    });
+  },
+  moveDocumentToFolder: (documentId, folderId) => {
+    set((state) => {
+      const library = moveLibraryDocumentToFolder(state.library, documentId, folderId);
+      saveLibrary(library);
+      return { library };
+    });
+  },
   createDocument: (input) => {
     const document = createDocumentFromState(input);
     set((state) => {
@@ -129,6 +193,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     set({
       library: result.library,
       selectedDocumentId: result.library.currentDocumentId,
+      selectedFolderId: undefined,
       searchQuery: '',
     });
     return result;

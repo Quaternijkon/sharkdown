@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { ExportPanel } from '../components/controls/ExportPanel';
+import { MarkdownAnalysisPanel } from '../components/analysis/MarkdownAnalysisPanel';
 import { ConvertPanel } from '../components/convert/ConvertPanel';
 import { DocumentLibraryPanel } from '../components/library/DocumentLibraryPanel';
 import { SizePanel } from '../components/controls/SizePanel';
@@ -364,6 +365,7 @@ export function App() {
             busy={busy}
             onExportArtifacts={handleConvertArtifacts}
           />
+          <MarkdownAnalysisPanel markdown={markdown} />
           <SharePanel previewRef={previewRef} onNotice={showNotice} />
           <TemplatePanel onNotice={showNotice} />
         </aside>

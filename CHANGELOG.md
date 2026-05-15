@@ -2,6 +2,29 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [1.1.0] - 2026-05-15
+
+### Added
+
+- Markdown editor now uses `@uiw/react-md-editor` and adds Sharkdown's own compact formatting toolbar for bold, italic, strikethrough, inline code, code blocks, headings, quotes, lists, task lists, links, and tables.
+- Selected Markdown text now has a right-click quick formatting menu for common inline and block commands.
+- Local document library now has a lightweight virtual file tree with nested folders, folder collapse state, selected-folder creation, folder rename, safe folder removal, and document move-to-folder controls.
+- Document library search now matches virtual folder names as well as document title, body, and tags.
+- Offline Markdown analysis panel with syntax-map highlighting, main insights, code language detection, task completion progress, section distribution, and heuristic structure/completeness/visualization scores.
+
+### Fixed
+
+- Image export now reads the actual computed background of the rendered preview node before generating PNG/JPEG/WebP/SVG. Dark themes such as Douyin and black-gold no longer export with a white background behind light text.
+
+### Changed
+
+- Document library backups now preserve the version-3 virtual folder model while continuing to use the existing browser storage key for in-place migration.
+- README and release metadata now describe the editor, file tree, analysis panel, and current verification commands.
+
+### Compatibility
+
+- Still a static offline-first browser app. The new editor, virtual file tree, image export fix, and Markdown analysis all run locally in the browser with no backend, sync account, telemetry, or upload flow.
+
 ## [0.3.1] - 2026-05-15
 
 ### Fixed

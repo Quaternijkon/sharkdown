@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DocumentLibraryPanel } from './DocumentLibraryPanel';
-import { createDocumentFromState, createEmptyLibrary, updateDocumentContent } from '../../library/documentLibrary';
+import { createDocumentFromState, createEmptyLibrary, createFolder, updateDocumentContent } from '../../library/documentLibrary';
 import { useLibraryStore } from '../../library/useLibraryStore';
 import { DEFAULT_DOCUMENT_STATE, useEditorStore } from '../../store/useEditorStore';
 
@@ -73,5 +73,26 @@ describe('DocumentLibraryPanel', () => {
 
     expect(confirmSpy).toHaveBeenCalled();
     expect(useEditorStore.getState().markdown).toBe('# Edited First');
+  });
+
+  it('manages selected virtual folders from the library panel', () => {
+    const library = createFolder(createEmptyLibrary(), {
+      id: 'folder_notes',
+      name: 'Notes',
+      now: '2026-05-15T00:00:00.000Z',
+    });
+    useLibraryStore.setState({ library, selectedFolderId: 'folder_notes' });
+    const notice = vi.fn();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<DocumentLibraryPanel onNotice={notice} />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: '文件夹新名称' }), { target: { value: 'Ideas' } });
+    fireEvent.click(screen.getByRole('button', { name: '重命名选中文件夹' }));
+    fireEvent.click(screen.getByRole('button', { name: '移除选中文件夹' }));
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(useLibraryStore.getState().library.folders).toHaveLength(0);
+    expect(notice).toHaveBeenCalledWith('文件夹已移除，内部文档已保留到根目录。', 'success');
   });
 });

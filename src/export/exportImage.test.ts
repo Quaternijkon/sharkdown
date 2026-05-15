@@ -44,6 +44,27 @@ describe('exportPreviewAsBlob', () => {
     );
   });
 
+  it('uses the rendered preview background instead of a stale canvas background', async () => {
+    const blob = new Blob(['png'], { type: 'image/png' });
+    toBlobMock.mockResolvedValue(blob);
+    const root = document.createElement('div');
+    root.style.backgroundColor = 'rgb(11, 11, 16)';
+    Object.defineProperty(root, 'scrollHeight', { configurable: true, value: 600 });
+
+    await exportPreviewAsBlob(root, {
+      format: 'png',
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+    });
+
+    expect(toBlobMock).toHaveBeenCalledWith(
+      root,
+      expect.objectContaining({
+        backgroundColor: 'rgb(11, 11, 16)',
+      }),
+    );
+  });
+
   it('exports JPEG as a Blob without using data URLs', async () => {
     const canvas = document.createElement('canvas');
     canvas.toBlob = vi.fn((callback: BlobCallback) => {

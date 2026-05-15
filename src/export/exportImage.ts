@@ -12,7 +12,7 @@ export async function exportPreviewAsBlob(
   const imageOptions = {
     cacheBust: true,
     pixelRatio: options.pixelRatio,
-    backgroundColor: options.backgroundColor,
+    backgroundColor: resolveExportBackgroundColor(element, options.backgroundColor),
     style: {
       transform: 'none',
     },
@@ -33,6 +33,14 @@ export async function exportPreviewAsBlob(
 
   const svgDataUrl = await toSvg(element, imageOptions);
   return dataUrlToBlob(svgDataUrl, 'image/svg+xml');
+}
+
+export function resolveExportBackgroundColor(element: HTMLElement, fallbackColor: string): string {
+  const computedColor = window.getComputedStyle(element).backgroundColor;
+  if (computedColor && computedColor !== 'transparent' && computedColor !== 'rgba(0, 0, 0, 0)') {
+    return computedColor;
+  }
+  return fallbackColor;
 }
 
 export function exportExtension(format: ExportFormat): string {
