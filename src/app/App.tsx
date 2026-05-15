@@ -317,9 +317,11 @@ export function App() {
     <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-950 px-4 py-3 text-white">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-md bg-teal-500 font-bold text-slate-950">
-            S
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt="Sharkdown logo"
+            className="h-10 w-10 rounded-md bg-white object-contain"
+          />
           <div>
             <h1 className="text-lg font-semibold leading-tight">Sharkdown</h1>
             <div className="text-xs text-slate-300">离线 Markdown 分享工作台</div>

@@ -5,11 +5,13 @@ import {
   archiveDocument as archiveLibraryDocument,
   createDocumentFromState,
   duplicateDocument as duplicateLibraryDocument,
+  importLibraryBackup as importLibraryBackupData,
   loadLibrary,
   restoreDocument as restoreLibraryDocument,
   saveLibrary,
   searchDocuments,
   updateDocumentContent,
+  type ImportLibraryResult,
   type SharkdownLibrary,
   type SharkdownLibraryDocument,
 } from './documentLibrary';
@@ -39,12 +41,15 @@ interface LibraryStore {
   archiveDocument: (documentId: string) => void;
   restoreDocument: (documentId: string) => void;
   duplicateDocument: (documentId: string) => string | undefined;
+  importLibraryBackup: (raw: string) => ImportLibraryResult;
   visibleDocuments: () => SharkdownLibraryDocument[];
 }
 
+const initialLibrary = loadLibrary();
+
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
-  library: loadLibrary(),
-  selectedDocumentId: loadLibrary().currentDocumentId,
+  library: initialLibrary,
+  selectedDocumentId: initialLibrary.currentDocumentId,
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
   createDocument: (input) => {
@@ -117,6 +122,16 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       };
     });
     return newId;
+  },
+  importLibraryBackup: (raw) => {
+    const result = importLibraryBackupData(get().library, raw);
+    saveLibrary(result.library);
+    set({
+      library: result.library,
+      selectedDocumentId: result.library.currentDocumentId,
+      searchQuery: '',
+    });
+    return result;
   },
   visibleDocuments: () => searchDocuments(get().library, get().searchQuery),
 }));

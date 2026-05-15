@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { DEFAULT_DOCUMENT_STATE } from '../store/useEditorStore';
-import { createEmptyLibrary } from './documentLibrary';
+import { createDocumentFromState, createEmptyLibrary, serializeLibraryBackup, updateDocumentContent } from './documentLibrary';
 import { useLibraryStore } from './useLibraryStore';
 
 describe('useLibraryStore', () => {
@@ -38,5 +38,27 @@ describe('useLibraryStore', () => {
     useLibraryStore.getState().restoreDocument(id);
     expect(useLibraryStore.getState().selectedDocumentId).toBe(id);
     expect(useLibraryStore.getState().library.documents[0]?.archivedAt).toBeUndefined();
+  });
+
+  it('imports a library backup into store state and persists the merged library', () => {
+    const backupLibrary = updateDocumentContent(
+      createEmptyLibrary(),
+      'doc_imported',
+      createDocumentFromState({
+        id: 'doc_imported',
+        title: 'Imported',
+        markdown: '# Imported',
+        state: DEFAULT_DOCUMENT_STATE,
+        tags: ['backup'],
+        now: '2026-05-15T00:00:00.000Z',
+      }),
+    );
+
+    const result = useLibraryStore.getState().importLibraryBackup(serializeLibraryBackup(backupLibrary));
+
+    expect(result.imported).toBe(1);
+    expect(useLibraryStore.getState().library.documents[0]?.title).toBe('Imported');
+    expect(useLibraryStore.getState().selectedDocumentId).toBe('doc_imported');
+    expect(localStorage.getItem('sharkdown-library-v2')).toContain('Imported');
   });
 });

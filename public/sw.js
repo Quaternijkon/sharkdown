@@ -5,6 +5,7 @@ const APP_SHELL = [
   self.registration.scope,
   `${self.registration.scope}manifest.webmanifest`,
   `${self.registration.scope}icon.svg`,
+  `${self.registration.scope}logo.png`,
 ];
 
 self.addEventListener('install', (event) => {

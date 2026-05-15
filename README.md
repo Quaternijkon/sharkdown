@@ -5,7 +5,7 @@ Sharkdown 是一个纯静态、离线优先的 **Share Markdown / Convert Markdo
 ## 功能范围
 
 - Markdown 编辑与实时预览。
-- 本地文档库：多文档保存、搜索、标签、复制、归档和恢复。
+- 本地文档库：多文档保存、当前文档状态、标题与标签编辑、未保存提示、搜索、复制、归档、恢复、整库 JSON 备份导出和合并导入。
 - GitHub Flavored Markdown：表格、任务列表、删除线、链接。
 - KaTeX 数学公式。
 - Mermaid 图表。
@@ -69,7 +69,7 @@ src/
   components/templates/TemplatePanel.tsx 分享场景模板
   components/controls/                 主题、画布、导出控制
   convert/                             转换制品模型、平台预设、分段、HTML 片段、预检
-  library/                              本地文档库纯逻辑和 Zustand 包装
+  library/                              本地文档库、备份导入导出、未保存检测和 Zustand 包装
   markdown/                            react-markdown 渲染、Shiki、Mermaid、sanitize schema
   export/                              html-to-image 导出、剪贴板、等待资源、切片、PDF profiles、批量 ZIP
   share/                               .sharkdown、HTML、URL、隐私扫描、剪贴板格式
@@ -121,7 +121,7 @@ npx playwright test
 
 ## 版本与更新记录
 
-当前版本以 `package.json` 和 `src/version.ts` 为准。每次功能更新必须同步维护：
+当前版本：`0.3.0`。版本以 `package.json` 和 `src/version.ts` 为准。每次功能更新必须同步维护：
 
 - `package.json` 和 `package-lock.json` 的版本号。
 - `src/version.ts` 的 `APP_VERSION` 与 `APP_RELEASE_DATE`。

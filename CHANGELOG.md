@@ -2,6 +2,24 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [0.3.0] - 2026-05-15
+
+### Added
+
+- Root `tile_r1_c1.png` has been adopted as the web app logo, favicon, manifest icon, header mark, and service worker cached shell asset.
+- Local document library now exposes document title and tag editing, saved/unsaved status, clearer current document handling, and an explicit archive section.
+- Portable document library backup export as JSON for local backup and device migration.
+- Portable document library backup import with merge semantics: new documents are added, newer imported conflicts update local records, and newer local conflicts are kept.
+- Regression coverage for library backup import/export, unsaved-change detection, document library panel behavior, and logo asset wiring.
+
+### Changed
+
+- Document library UI is still a compact local panel, but now treats the current document as an explicit saved draft instead of a hidden side effect of the editor.
+
+### Compatibility
+
+- Still a static offline-first browser app. Document backups are user-triggered local JSON downloads/uploads; no backend, account system, telemetry, or upload flow is introduced.
+
 ## [0.2.0] - 2026-05-15
 
 ### Added

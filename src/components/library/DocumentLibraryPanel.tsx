@@ -1,18 +1,38 @@
-import { Archive, Copy, FilePlus2, FolderOpen, RotateCcw, Save, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  Archive,
+  Copy,
+  Download,
+  FilePlus2,
+  FolderOpen,
+  RotateCcw,
+  Save,
+  Search,
+  Upload,
+} from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 
 import { ToolbarButton } from '../common/Toolbar';
-import type { DocumentState } from '../../types';
-import type { SharkdownLibraryDocument } from '../../library/documentLibrary';
+import {
+  archivedDocuments as listArchivedDocuments,
+  hasUnsavedDocumentChanges,
+  serializeLibraryBackup,
+  type SharkdownLibraryDocument,
+} from '../../library/documentLibrary';
 import { useLibraryStore } from '../../library/useLibraryStore';
 import { DEFAULT_DOCUMENT_STATE, useEditorStore } from '../../store/useEditorStore';
+import type { DocumentState } from '../../types';
+import { createExportFileName, downloadBlob } from '../../utils/download';
+import { APP_VERSION } from '../../version';
 
 interface DocumentLibraryPanelProps {
   onNotice: (message: string, tone?: 'info' | 'success' | 'error') => void;
 }
 
 export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
-  const [tagInput, setTagInput] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [titleInput, setTitleInput] = useState(() => initialSelectedDocument()?.title ?? '');
+  const [tagInput, setTagInput] = useState(() => initialSelectedDocument()?.tags.join(', ') ?? '');
+  const [showArchive, setShowArchive] = useState(false);
   const markdown = useEditorStore((state) => state.markdown);
   const editorState = useCurrentDocumentState();
   const setMarkdown = useEditorStore((state) => state.setMarkdown);
@@ -27,16 +47,29 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
   const archiveDocument = useLibraryStore((state) => state.archiveDocument);
   const restoreDocument = useLibraryStore((state) => state.restoreDocument);
   const duplicateDocument = useLibraryStore((state) => state.duplicateDocument);
+  const importLibraryBackup = useLibraryStore((state) => state.importLibraryBackup);
   const visibleDocuments = useLibraryStore((state) => state.visibleDocuments);
 
-  const archivedDocuments = useMemo(
-    () => library.documents.filter((document) => document.archivedAt),
-    [library.documents],
+  const selectedDocument = useMemo(
+    () => library.documents.find((document) => document.id === selectedDocumentId),
+    [library.documents, selectedDocumentId],
   );
+  const activeDocuments = visibleDocuments();
+  const archivedDocuments = useMemo(() => listArchivedDocuments(library), [library]);
+  const draftTags = parseTags(tagInput);
+  const draftTitle = titleInput.trim() || extractTitle(markdown);
+  const isDirty = hasUnsavedDocumentChanges(selectedDocument, {
+    title: draftTitle,
+    markdown,
+    state: editorState,
+    tags: draftTags,
+  });
+  const shouldWarnBeforeLeaving =
+    Boolean(selectedDocument && isDirty) || (!selectedDocument && markdown.trim().length > 0 && markdown !== DEFAULT_DOCUMENT_STATE.markdown);
 
   function saveCurrentDocument() {
-    const title = extractTitle(markdown);
-    const tags = parseTags(tagInput);
+    const title = draftTitle;
+    const tags = draftTags;
     if (selectedDocumentId) {
       saveDocument(selectedDocumentId, {
         title,
@@ -54,10 +87,14 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
       tags,
     });
     selectDocument(id);
+    setTitleInput(title);
     onNotice('已创建本地文档。', 'success');
   }
 
   function createBlankDocument() {
+    if (!confirmUnsavedChanges()) {
+      return;
+    }
     const state = { ...DEFAULT_DOCUMENT_STATE, markdown: '' };
     const id = createDocument({
       title: 'Untitled',
@@ -67,15 +104,83 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
     });
     selectDocument(id);
     applyDocument({ markdown: '', state });
+    setTitleInput('Untitled');
     setTagInput('');
     onNotice('已新建空白文档。');
   }
 
   function loadDocument(document: SharkdownLibraryDocument) {
+    if (document.id !== selectedDocumentId && !confirmUnsavedChanges()) {
+      return;
+    }
     selectDocument(document.id);
     applyDocument(document);
+    setTitleInput(document.title);
     setTagInput(document.tags.join(', '));
     onNotice(`已打开：${document.title}`);
+  }
+
+  function exportLibrary() {
+    const backup = serializeLibraryBackup(library, { appVersion: APP_VERSION });
+    downloadBlob(new Blob([backup], { type: 'application/json;charset=utf-8' }), createExportFileName('json', 'library'));
+    onNotice('文档库备份已生成。', 'success');
+  }
+
+  function importLibrary(file: File) {
+    void file
+      .text()
+      .then((raw) => {
+        const result = importLibraryBackup(raw);
+        onNotice(`已导入文档库：新增 ${result.imported}，更新 ${result.updated}，跳过 ${result.skipped}。`, 'success');
+      })
+      .catch((error: unknown) => {
+        onNotice(error instanceof Error ? error.message : '文档库导入失败。', 'error');
+      })
+      .finally(() => {
+        if (importInputRef.current) {
+          importInputRef.current.value = '';
+        }
+      });
+  }
+
+  function archiveSelectedDocument() {
+    if (!selectedDocumentId || !confirmUnsavedChanges()) {
+      return;
+    }
+    archiveDocument(selectedDocumentId);
+    setTitleInput('');
+    setTagInput('');
+    onNotice('文档已移入归档区。');
+  }
+
+  function duplicateSelectedDocument() {
+    if (!selectedDocumentId || !confirmUnsavedChanges()) {
+      return;
+    }
+    const copyId = selectedDocumentId ? duplicateDocument(selectedDocumentId) : undefined;
+    if (!copyId) {
+      return;
+    }
+    const copy = useLibraryStore.getState().library.documents.find((document) => document.id === copyId);
+    if (copy) {
+      loadDocument(copy);
+    }
+    onNotice('文档副本已创建。', 'success');
+  }
+
+  function restoreAndOpen(document: SharkdownLibraryDocument) {
+    if (!confirmUnsavedChanges()) {
+      return;
+    }
+    restoreDocument(document.id);
+    loadDocument({ ...document, archivedAt: undefined });
+  }
+
+  function confirmUnsavedChanges(): boolean {
+    if (!shouldWarnBeforeLeaving) {
+      return true;
+    }
+    return window.confirm('当前文档有未保存改动。继续操作会丢弃这些改动，是否继续？');
   }
 
   function applyDocument(document: Pick<SharkdownLibraryDocument, 'markdown' | 'state'>) {
@@ -83,18 +188,17 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
     updateSettings(document.state);
   }
 
-  function selectedDocument() {
-    return library.documents.find((document) => document.id === selectedDocumentId);
-  }
-
   return (
-    <section className="flex max-h-[36vh] min-h-[220px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <section className="flex max-h-[46vh] min-h-[320px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-800">
           <FolderOpen size={17} />
           <span>文档库</span>
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-normal text-slate-600">
+            {selectedDocument ? (isDirty ? '未保存' : '已保存') : '临时草稿'}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <ToolbarButton icon={<FilePlus2 size={16} />} label="新建文档" onClick={createBlankDocument} />
           <ToolbarButton
             icon={<Save size={16} />}
@@ -105,7 +209,39 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
           />
         </div>
       </div>
-      <div className="border-b border-slate-200 p-3">
+
+      <div className="space-y-2 border-b border-slate-200 p-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <label className="min-w-0">
+            <span className="sr-only">当前文档标题</span>
+            <input
+              value={titleInput}
+              onChange={(event) => setTitleInput(event.target.value)}
+              placeholder="当前文档标题"
+              className="h-9 w-full rounded-md border border-slate-200 px-2 text-sm font-medium outline-none focus:border-slate-500"
+            />
+          </label>
+          <div className="flex items-center gap-1">
+            <ToolbarButton icon={<Download size={16} />} label="导出文档库备份" onClick={exportLibrary} />
+            <ToolbarButton
+              icon={<Upload size={16} />}
+              label="导入文档库备份"
+              onClick={() => importInputRef.current?.click()}
+            />
+          </div>
+        </div>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              importLibrary(file);
+            }
+          }}
+        />
         <label className="relative block">
           <Search className="pointer-events-none absolute left-2 top-2.5 text-slate-400" size={15} />
           <input
@@ -119,76 +255,110 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
           value={tagInput}
           onChange={(event) => setTagInput(event.target.value)}
           placeholder="标签，用逗号分隔"
-          className="mt-2 h-8 w-full rounded-md border border-slate-200 px-2 text-xs outline-none focus:border-slate-500"
+          className="h-8 w-full rounded-md border border-slate-200 px-2 text-xs outline-none focus:border-slate-500"
         />
       </div>
+
       <div className="min-h-0 flex-1 overflow-auto">
-        {visibleDocuments().length === 0 ? (
+        {activeDocuments.length === 0 ? (
           <div className="px-3 py-4 text-xs leading-5 text-slate-500">暂无文档，保存当前内容后会出现在这里。</div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {visibleDocuments().map((document) => (
-              <button
+            {activeDocuments.map((document) => (
+              <DocumentRow
                 key={document.id}
-                type="button"
-                onClick={() => loadDocument(document)}
-                className={`block w-full px-3 py-2 text-left hover:bg-slate-50 ${
-                  selectedDocumentId === document.id ? 'bg-teal-50' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-slate-800">{document.title}</span>
-                  <span className="shrink-0 text-[11px] text-slate-500">{formatDate(document.updatedAt)}</span>
-                </div>
-                <div className="mt-1 truncate text-xs text-slate-500">
-                  {document.tags.length ? document.tags.join(' / ') : `${document.markdown.length} 字符`}
-                </div>
-              </button>
+                document={document}
+                selected={selectedDocumentId === document.id}
+                onOpen={() => loadDocument(document)}
+              />
             ))}
           </div>
         )}
+
+        {showArchive ? (
+          <div className="border-t border-slate-200 bg-slate-50">
+            <div className="px-3 py-2 text-xs font-medium text-slate-600">归档区</div>
+            {archivedDocuments.length === 0 ? (
+              <div className="px-3 pb-3 text-xs text-slate-500">暂无归档文档。</div>
+            ) : (
+              <div className="divide-y divide-slate-200">
+                {archivedDocuments.map((document) => (
+                  <button
+                    key={document.id}
+                    type="button"
+                    onClick={() => restoreAndOpen(document)}
+                    className="block w-full px-3 py-2 text-left hover:bg-slate-100"
+                    aria-label={`恢复文档：${document.title}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-slate-700">{document.title}</span>
+                      <span className="shrink-0 text-[11px] text-slate-500">{formatDate(document.updatedAt)}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">点击恢复并打开</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
+
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-2">
         <ToolbarButton
           icon={<Copy size={16} />}
           label="复制当前文档"
           disabled={!selectedDocumentId}
-          onClick={() => {
-            const copyId = selectedDocumentId ? duplicateDocument(selectedDocumentId) : undefined;
-            if (copyId) {
-              onNotice('文档副本已创建。', 'success');
-            }
-          }}
+          onClick={duplicateSelectedDocument}
         />
         <ToolbarButton
           icon={<Archive size={16} />}
           label="归档当前文档"
           disabled={!selectedDocumentId}
           tone="danger"
-          onClick={() => {
-            if (selectedDocumentId) {
-              archiveDocument(selectedDocumentId);
-              onNotice('文档已移入回收区。');
-            }
-          }}
+          onClick={archiveSelectedDocument}
         />
         <ToolbarButton
           icon={<RotateCcw size={16} />}
-          label="恢复最近归档"
+          label={showArchive ? '隐藏归档区' : '显示归档区'}
           disabled={archivedDocuments.length === 0}
-          onClick={() => {
-            const document = archivedDocuments.at(-1);
-            if (document) {
-              restoreDocument(document.id);
-              loadDocument({ ...document, archivedAt: undefined });
-            }
-          }}
+          onClick={() => setShowArchive((value) => !value)}
         />
         <span className="ml-auto truncate text-xs text-slate-500">
-          {selectedDocument()?.title ?? `${library.documents.length} 个文档`}
+          {activeDocuments.length} 个文档
+          {archivedDocuments.length ? ` / ${archivedDocuments.length} 个归档` : ''}
         </span>
       </div>
     </section>
+  );
+}
+
+function DocumentRow({
+  document,
+  selected,
+  onOpen,
+}: {
+  document: SharkdownLibraryDocument;
+  selected: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`打开文档：${document.title}`}
+      className={`block w-full px-3 py-2 text-left hover:bg-slate-50 ${selected ? 'bg-teal-50' : ''}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-sm font-medium text-slate-800">{document.title}</span>
+        <span className="shrink-0 text-[11px] text-slate-500">{formatDate(document.updatedAt)}</span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <span className="min-w-0 truncate">
+          {document.tags.length ? document.tags.join(' / ') : firstLine(document.markdown)}
+        </span>
+        <span className="shrink-0">{document.markdown.length} 字符</span>
+      </div>
+    </button>
   );
 }
 
@@ -224,9 +394,21 @@ function parseTags(input: string): string[] {
     .filter(Boolean);
 }
 
+function firstLine(markdown: string): string {
+  return markdown
+    .split('\n')
+    .map((line) => line.replace(/^#+\s*/, '').trim())
+    .find(Boolean) ?? '空白文档';
+}
+
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
   });
+}
+
+function initialSelectedDocument(): SharkdownLibraryDocument | undefined {
+  const state = useLibraryStore.getState();
+  return state.library.documents.find((document) => document.id === state.selectedDocumentId);
 }
