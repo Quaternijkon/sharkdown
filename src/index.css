@@ -42,6 +42,47 @@ textarea {
   tab-size: 2;
 }
 
+.sharkdown-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.sharkdown-column-resizer {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .sharkdown-workspace {
+    height: calc(100vh - 65px);
+    grid-template-columns:
+      minmax(320px, var(--workspace-editor))
+      10px
+      minmax(420px, 1fr)
+      10px
+      minmax(58px, var(--workspace-sidebar));
+    gap: 0;
+  }
+
+  .sharkdown-column-resizer {
+    display: block;
+    min-width: 10px;
+    cursor: col-resize;
+    border-inline: 1px solid transparent;
+    background:
+      linear-gradient(#cbd5e1, #cbd5e1) center / 2px 48px no-repeat,
+      transparent;
+  }
+
+  .sharkdown-column-resizer:hover,
+  .sharkdown-column-resizer:focus-visible {
+    background:
+      linear-gradient(#0f766e, #0f766e) center / 2px 72px no-repeat,
+      #e2e8f0;
+    outline: none;
+  }
+}
+
 .sharkdown-editor-surface .w-md-editor {
   border-radius: 0;
   box-shadow: none;

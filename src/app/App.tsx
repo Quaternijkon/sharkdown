@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { BarChart3, FolderTree, Palette, RefreshCw } from 'lucide-react';
 
 import { ExportPanel } from '../components/controls/ExportPanel';
 import { MarkdownAnalysisPanel } from '../components/analysis/MarkdownAnalysisPanel';
@@ -10,6 +11,13 @@ import { MarkdownEditor } from '../components/editor/MarkdownEditor';
 import { PreviewFrame } from '../components/preview/PreviewFrame';
 import { SharePanel } from '../components/share/SharePanel';
 import { TemplatePanel } from '../components/templates/TemplatePanel';
+import { WorkspaceSidebar } from '../components/workspace/WorkspaceSidebar';
+import {
+  clampWorkspaceColumns,
+  COLLAPSED_SIDEBAR_WIDTH,
+  DEFAULT_WORKSPACE_COLUMNS,
+  type WorkspaceColumnWidths,
+} from '../components/workspace/workspaceLayout';
 import { createBinaryArtifact, createTextArtifact, type ConvertArtifact, type ConvertTargetId } from '../convert/artifact';
 import { createHtmlFragmentArtifact } from '../convert/htmlFragment';
 import { ClipboardImageError, copyBlobToClipboard } from '../export/clipboard';
@@ -42,6 +50,8 @@ export function App() {
   const setMarkdown = useEditorStore((state) => state.setMarkdown);
   const updateSettings = useEditorStore((state) => state.updateSettings);
   const [busy, setBusy] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<WorkspaceColumnWidths>(DEFAULT_WORKSPACE_COLUMNS);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notice, setNotice] = useState<Notice>({
     message: 'Ready',
     tone: 'info',
@@ -314,6 +324,52 @@ export function App() {
     return [markdownArtifact, plainTextArtifact, htmlFragment, pngArtifact];
   }
 
+  function startColumnResize(
+    divider: 'editor-preview' | 'preview-sidebar',
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidths = columnWidths;
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const delta = moveEvent.clientX - startX;
+      setColumnWidths(
+        clampWorkspaceColumns(
+          divider === 'editor-preview'
+            ? {
+                editor: startWidths.editor + delta,
+                preview: startWidths.preview - delta,
+                sidebar: startWidths.sidebar,
+              }
+            : {
+                editor: startWidths.editor,
+                preview: startWidths.preview + delta,
+                sidebar: startWidths.sidebar - delta,
+              },
+        ),
+      );
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }
+
+  const workspaceStyle = {
+    '--workspace-editor': `${columnWidths.editor}px`,
+    '--workspace-preview': `${columnWidths.preview}px`,
+    '--workspace-sidebar': `${sidebarCollapsed ? COLLAPSED_SIDEBAR_WIDTH : columnWidths.sidebar}px`,
+  } as CSSProperties;
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-950 px-4 py-3 text-white">
@@ -341,34 +397,80 @@ export function App() {
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 xl:grid-cols-[minmax(320px,0.86fr)_minmax(420px,1.2fr)_340px]">
-        <div className="flex min-h-0 flex-col gap-3">
-          <DocumentLibraryPanel onNotice={showNotice} />
+      <main className="sharkdown-workspace min-h-0 flex-1 p-3 xl:p-4" style={workspaceStyle}>
+        <div className="flex min-h-0 flex-col">
           <MarkdownEditor onNotice={showNotice} />
         </div>
+        <div
+          role="separator"
+          aria-label="调整编辑器和预览宽度"
+          aria-orientation="vertical"
+          className="sharkdown-column-resizer"
+          onPointerDown={(event) => startColumnResize('editor-preview', event)}
+        />
         <PreviewFrame ref={previewRef} />
-        <aside className="flex min-h-0 flex-col gap-3 overflow-auto">
-          <ThemePanel />
-          <SizePanel />
-          <ExportPanel
-            busy={busy}
-            backgroundColor={background}
-            onImageDownload={handleImageDownload}
-            onCopyImage={handleCopyImage}
-            onSliceExport={handleSliceExport}
-            onPdfDownload={handlePdfDownload}
-          />
-          <ConvertPanel
-            markdown={markdown}
-            renderedHtml={previewRef.current?.innerHTML ?? ''}
-            estimatedLocalAssetBytes={0}
-            busy={busy}
-            onExportArtifacts={handleConvertArtifacts}
-          />
-          <MarkdownAnalysisPanel markdown={markdown} />
-          <SharePanel previewRef={previewRef} onNotice={showNotice} />
-          <TemplatePanel onNotice={showNotice} />
-        </aside>
+        <div
+          role="separator"
+          aria-label="调整预览和右侧栏宽度"
+          aria-orientation="vertical"
+          className="sharkdown-column-resizer"
+          onPointerDown={(event) => startColumnResize('preview-sidebar', event)}
+        />
+        <WorkspaceSidebar
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
+          panels={[
+            {
+              id: 'convert',
+              label: '转换导出',
+              icon: <RefreshCw size={19} />,
+              content: (
+                <>
+                  <ExportPanel
+                    busy={busy}
+                    backgroundColor={background}
+                    onImageDownload={handleImageDownload}
+                    onCopyImage={handleCopyImage}
+                    onSliceExport={handleSliceExport}
+                    onPdfDownload={handlePdfDownload}
+                  />
+                  <ConvertPanel
+                    markdown={markdown}
+                    renderedHtml={previewRef.current?.innerHTML ?? ''}
+                    estimatedLocalAssetBytes={0}
+                    busy={busy}
+                    onExportArtifacts={handleConvertArtifacts}
+                  />
+                  <SharePanel previewRef={previewRef} onNotice={showNotice} />
+                </>
+              ),
+            },
+            {
+              id: 'style',
+              label: '外观样式',
+              icon: <Palette size={19} />,
+              content: (
+                <>
+                  <ThemePanel />
+                  <SizePanel />
+                  <TemplatePanel onNotice={showNotice} />
+                </>
+              ),
+            },
+            {
+              id: 'analysis',
+              label: '分析评估',
+              icon: <BarChart3 size={19} />,
+              content: <MarkdownAnalysisPanel markdown={markdown} />,
+            },
+            {
+              id: 'library',
+              label: '文件系统',
+              icon: <FolderTree size={19} />,
+              content: <DocumentLibraryPanel onNotice={showNotice} />,
+            },
+          ]}
+        />
       </main>
     </div>
   );

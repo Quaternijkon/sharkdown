@@ -33,11 +33,39 @@ export interface SectionDistribution {
 export interface MarkdownAnalysisReport {
   insights: {
     documentType: string;
+    documentTypeLabel: string;
     mainTakeaway: string;
     markdownFeatures: MarkdownFeatureInsight[];
     programmingLanguages: Array<{ language: string; count: number }>;
+    strengths: string[];
+    recommendations: string[];
   };
   statistics: {
+    basic: {
+      lineCount: number;
+      nonEmptyLineCount: number;
+      characterCount: number;
+      wordCount: number;
+      cjkCharacterCount: number;
+      readingTimeMinutes: number;
+      paragraphCount: number;
+      headingCount: number;
+      listItemCount: number;
+      taskCount: number;
+      linkCount: number;
+      imageCount: number;
+      tableCount: number;
+      formulaCount: number;
+      codeBlockCount: number;
+      blockquoteCount: number;
+    };
+    syntaxCoverage: {
+      present: number;
+      total: number;
+      rate: number;
+      missing: MarkdownFeatureId[];
+    };
+    headingDepth: Record<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', number>;
     sectionDistribution: SectionDistribution[];
     contentTypeDistribution: Record<string, number>;
     taskProgress: null | {
@@ -57,6 +85,8 @@ export interface MarkdownAnalysisReport {
       structureClarity: number;
       contentCompleteness: number;
       visualizationPotential: number;
+      shareReadiness: number;
+      readability: number;
     };
     summary: string;
   };
@@ -95,22 +125,33 @@ export function analyzeMarkdown(markdown: string): MarkdownAnalysisReport {
   const lines = markdown.split(/\r?\n/);
   const codeBlocks = collectCodeBlocks(lines);
   const flags = collectFeatureFlags(lines, codeBlocks);
+  const markdownFeatures = buildFeatureInsights(flags);
+  const basic = collectBasicStatistics(markdown, lines, codeBlocks);
+  const syntaxCoverage = collectSyntaxCoverage(markdownFeatures);
+  const headingDepth = collectHeadingDepth(lines);
   const sectionDistribution = collectSectionDistribution(lines, codeBlocks);
   const taskProgress = collectTaskProgress(lines);
   const languages = collectLanguages(codeBlocks);
   const contentTypeDistribution = collectContentTypeDistribution(lines, codeBlocks);
-  const headingCount = lines.filter((line) => /^#{1,6}\s+/.test(line)).length;
+  const headingCount = basic.headingCount;
   const structuralSignals = Number(flags.heading) + Number(flags.table) + Number(flags.taskList) + Number(flags.codeBlock);
   const complexityScore = structuralSignals + codeBlocks.length + (flags.mermaid ? 2 : 0) + (flags.formula ? 1 : 0);
+  const documentType = inferDocumentType(markdown, flags);
 
   return {
     insights: {
-      documentType: inferDocumentType(markdown, flags),
+      documentType,
+      documentTypeLabel: documentTypeLabels[documentType] ?? documentType,
       mainTakeaway: inferMainTakeaway(lines),
-      markdownFeatures: buildFeatureInsights(flags),
+      markdownFeatures,
       programmingLanguages: languages,
+      strengths: buildStrengths(flags, taskProgress, codeBlocks, syntaxCoverage),
+      recommendations: buildRecommendations(flags, basic, sectionDistribution, syntaxCoverage),
     },
     statistics: {
+      basic,
+      syntaxCoverage,
+      headingDepth,
       sectionDistribution,
       contentTypeDistribution,
       taskProgress,
@@ -123,11 +164,96 @@ export function analyzeMarkdown(markdown: string): MarkdownAnalysisReport {
         structureClarity: scoreStructureClarity(headingCount, sectionDistribution),
         contentCompleteness: scoreContentCompleteness(flags, headingCount),
         visualizationPotential: scoreVisualizationPotential(flags, taskProgress, codeBlocks),
+        shareReadiness: scoreShareReadiness(flags, basic, syntaxCoverage),
+        readability: scoreReadability(basic, sectionDistribution),
       },
-      summary: buildSummary(flags, taskProgress, codeBlocks),
+      summary: buildSummary(flags, taskProgress, codeBlocks, basic, syntaxCoverage),
     },
     chartRecommendations: buildChartRecommendations(flags, taskProgress, codeBlocks),
   };
+}
+
+const documentTypeLabels: Record<string, string> = {
+  technical_doc: '技术文档',
+  project_plan: '项目计划',
+  changelog: '更新日志',
+  article: '文章',
+  note: '笔记',
+};
+
+function collectBasicStatistics(markdown: string, lines: string[], codeBlocks: CodeBlock[]) {
+  const body = lines.join('\n');
+  const nonEmptyLineCount = lines.filter((line) => line.trim()).length;
+  const cjkCharacterCount = (body.match(/[\u3400-\u9fff]/g) ?? []).length;
+  const latinWordCount = (body.match(/[A-Za-z0-9]+(?:[-_'][A-Za-z0-9]+)*/g) ?? []).length;
+  const wordCount = cjkCharacterCount + latinWordCount;
+  const tableCount = lines.filter((line, index) => line.includes('|') && /^\s*\|?\s*:?-{3,}:?\s*\|/.test(lines[index + 1] ?? '')).length;
+  const taskLines = lines.filter((line) => /^\s*[-*+]\s+\[[ xX]\]\s+/.test(line));
+  const listItemCount = lines.filter((line) => /^\s*(?:[-*+]|\d+\.)\s+/.test(line)).length;
+  const formulaCount = (body.match(/\$\$[\s\S]+?\$\$|\$[^$\n]+\$/g) ?? []).length;
+  const imageCount = (body.match(/!\[[^\]]*]\([^)]+\)/g) ?? []).length;
+  const linkCount = (body.match(/(?<!!)\[[^\]]+\]\((?!local-image:\/\/)[^)]+\)/g) ?? []).length;
+
+  return {
+    lineCount: lines.length,
+    nonEmptyLineCount,
+    characterCount: markdown.length,
+    wordCount,
+    cjkCharacterCount,
+    readingTimeMinutes: wordCount > 0 ? Math.max(1, Math.ceil(wordCount / 450)) : 0,
+    paragraphCount: countParagraphs(lines),
+    headingCount: lines.filter((line) => /^#{1,6}\s+/.test(line)).length,
+    listItemCount,
+    taskCount: taskLines.length,
+    linkCount,
+    imageCount,
+    tableCount,
+    formulaCount,
+    codeBlockCount: codeBlocks.length,
+    blockquoteCount: lines.filter((line) => /^\s*>\s+/.test(line)).length,
+  };
+}
+
+function countParagraphs(lines: string[]): number {
+  let paragraphs = 0;
+  let inParagraph = false;
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    const isParagraphLine =
+      Boolean(trimmed) &&
+      !/^(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|\||```|\$\$|!\[[^\]]*]\([^)]+\))/.test(trimmed);
+    if (isParagraphLine && !inParagraph) {
+      paragraphs += 1;
+      inParagraph = true;
+      return;
+    }
+    if (!isParagraphLine) {
+      inParagraph = false;
+    }
+  });
+  return paragraphs;
+}
+
+function collectSyntaxCoverage(markdownFeatures: MarkdownFeatureInsight[]) {
+  const present = markdownFeatures.filter((feature) => feature.present).length;
+  const total = markdownFeatures.length;
+  return {
+    present,
+    total,
+    rate: total ? Number((present / total).toFixed(3)) : 0,
+    missing: markdownFeatures.filter((feature) => !feature.present).map((feature) => feature.id),
+  };
+}
+
+function collectHeadingDepth(lines: string[]): Record<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', number> {
+  const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
+  lines.forEach((line) => {
+    const match = /^(#{1,6})\s+/.exec(line);
+    if (match) {
+      counts[`h${match[1].length}` as keyof typeof counts] += 1;
+    }
+  });
+  return counts;
 }
 
 function collectFeatureFlags(lines: string[], codeBlocks: CodeBlock[]): FeatureFlags {
@@ -258,13 +384,44 @@ function collectTaskProgress(lines: string[]): MarkdownAnalysisReport['statistic
 }
 
 function collectContentTypeDistribution(lines: string[], codeBlocks: CodeBlock[]): Record<string, number> {
-  const total = Math.max(1, meaningfulLineCount(lines, 1, lines.length));
   const counts = {
-    explanatory: lines.filter((line) => line.trim() && !/^(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|\|)/.test(line.trim())).length,
-    structured: lines.filter((line) => /^(\s*[-*+]\s+|\s*\d+\.\s+|\|)/.test(line)).length,
-    technical: codeBlocks.reduce((sum, block) => sum + block.body.length + 2, 0),
-    visual: lines.filter((line) => /!\[[^\]]*]\([^)]+\)|```mermaid|\$\$/.test(line)).length,
+    explanatory: 0,
+    structured: 0,
+    technical: 0,
+    visual: 0,
   };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed === '---' || /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(trimmed)) {
+      return;
+    }
+
+    const lineNumber = index + 1;
+    const codeBlock = codeBlocks.find((block) => lineNumber >= block.lineStart && lineNumber <= block.lineEnd);
+    if (codeBlock) {
+      if (codeBlock.language.toLowerCase() === 'mermaid') {
+        counts.visual += 1;
+        return;
+      }
+      counts.technical += 1;
+      return;
+    }
+
+    if (/!\[[^\]]*]\([^)]+\)|\$\$|^\$[^$\n]+\$$/.test(trimmed)) {
+      counts.visual += 1;
+      return;
+    }
+
+    if (/^(#{1,6}\s+|\s*[-*+]\s+|\s*\d+\.\s+|>\s+|\|)/.test(trimmed)) {
+      counts.structured += 1;
+      return;
+    }
+
+    counts.explanatory += 1;
+  });
+
+  const total = Math.max(1, Object.values(counts).reduce((sum, value) => sum + value, 0));
   return Object.fromEntries(Object.entries(counts).map(([key, value]) => [key, Number((value / total).toFixed(3))]));
 }
 
@@ -351,6 +508,38 @@ function scoreVisualizationPotential(
   );
 }
 
+function scoreShareReadiness(
+  flags: FeatureFlags,
+  basic: MarkdownAnalysisReport['statistics']['basic'],
+  syntaxCoverage: MarkdownAnalysisReport['statistics']['syntaxCoverage'],
+): number {
+  const lengthScore = basic.wordCount < 80 ? 8 : basic.wordCount < 1200 ? 18 : 12;
+  return clampScore(
+    42 +
+      Number(flags.heading) * 10 +
+      Number(flags.paragraph) * 8 +
+      Number(flags.image) * 8 +
+      Number(flags.unorderedList || flags.orderedList || flags.taskList) * 7 +
+      Number(flags.table || flags.mermaid || flags.formula) * 5 +
+      Number(flags.link) * 4 +
+      lengthScore +
+      Math.round(syntaxCoverage.rate * 10),
+  );
+}
+
+function scoreReadability(
+  basic: MarkdownAnalysisReport['statistics']['basic'],
+  sections: SectionDistribution[],
+): number {
+  if (!basic.nonEmptyLineCount) {
+    return 0;
+  }
+  const averageSectionLines = sections.length ? basic.nonEmptyLineCount / sections.length : basic.nonEmptyLineCount;
+  const sectionPenalty = averageSectionLines > 40 ? 16 : averageSectionLines > 24 ? 8 : 0;
+  const lengthPenalty = basic.wordCount > 2200 ? 12 : basic.wordCount > 1400 ? 6 : 0;
+  return clampScore(78 + Math.min(12, basic.headingCount * 2) - sectionPenalty - lengthPenalty);
+}
+
 function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -359,13 +548,52 @@ function buildSummary(
   flags: FeatureFlags,
   taskProgress: MarkdownAnalysisReport['statistics']['taskProgress'],
   codeBlocks: CodeBlock[],
+  basic: MarkdownAnalysisReport['statistics']['basic'],
+  syntaxCoverage: MarkdownAnalysisReport['statistics']['syntaxCoverage'],
 ): string {
   const parts = ['文档'];
   if (flags.heading) parts.push('结构清晰');
   if (flags.taskList && taskProgress) parts.push(`任务完成度 ${Math.round(taskProgress.completionRate * 100)}%`);
   if (codeBlocks.length) parts.push(`包含 ${codeBlocks.length} 个代码块`);
   if (flags.table) parts.push('包含结构化表格');
+  parts.push(`约 ${basic.wordCount} 字`);
+  parts.push(`语法覆盖 ${Math.round(syntaxCoverage.rate * 100)}%`);
   return `${parts.join('，')}。`;
+}
+
+function buildStrengths(
+  flags: FeatureFlags,
+  taskProgress: MarkdownAnalysisReport['statistics']['taskProgress'],
+  codeBlocks: CodeBlock[],
+  syntaxCoverage: MarkdownAnalysisReport['statistics']['syntaxCoverage'],
+): string[] {
+  const strengths: string[] = [];
+  if (flags.heading) strengths.push('标题层级提供了明确的阅读路径。');
+  if (flags.taskList && taskProgress) strengths.push(`任务语法可量化进度，目前完成 ${Math.round(taskProgress.completionRate * 100)}%。`);
+  if (codeBlocks.length) strengths.push('代码块保留了技术细节，适合导出技术内容。');
+  if (flags.table) strengths.push('表格内容便于在社交媒体中做结构化对比。');
+  if (syntaxCoverage.rate >= 0.45) strengths.push('Markdown 语法类型较丰富，转换后视觉层次更容易拉开。');
+  return strengths.length ? strengths : ['内容结构较轻，适合快速整理为分享卡片。'];
+}
+
+function buildRecommendations(
+  flags: FeatureFlags,
+  basic: MarkdownAnalysisReport['statistics']['basic'],
+  sections: SectionDistribution[],
+  syntaxCoverage: MarkdownAnalysisReport['statistics']['syntaxCoverage'],
+): string[] {
+  const recommendations: string[] = [];
+  if (!flags.heading) recommendations.push('增加一级标题，让导出的图片、PDF 和社交预览更容易识别主题。');
+  if (!flags.image && basic.wordCount > 160) recommendations.push('长文分享可以加入封面图或配图，提高第一屏辨识度。');
+  if (!flags.unorderedList && !flags.orderedList && basic.paragraphCount >= 3) {
+    recommendations.push('将连续段落拆成列表，可提升移动端扫描效率。');
+  }
+  if (sections.some((section) => section.weight > 0.45)) {
+    recommendations.push('存在占比偏高的章节，可以拆成子标题降低阅读压力。');
+  }
+  if (syntaxCoverage.rate < 0.28) recommendations.push('当前语法覆盖较低，适合补充引用、列表、表格或图片来增强表达。');
+  if (flags.codeBlock && !flags.inlineCode) recommendations.push('技术内容可适当补充行内代码，突出关键变量、命令或文件名。');
+  return recommendations.length ? recommendations : ['当前结构已经适合直接进入导出与分享流程。'];
 }
 
 function buildChartRecommendations(

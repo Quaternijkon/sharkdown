@@ -2,6 +2,29 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [1.2.0] - 2026-05-16
+
+### Added
+
+- Main workspace now uses a three-column layout: left Markdown editor, center rendered preview, and right activity sidebar.
+- Right activity sidebar now separates major work modes into independent views: conversion/export, visual style, Markdown analysis, and local file system.
+- Desktop workspace columns can be resized with vertical drag handles between editor/preview and preview/sidebar.
+- Right sidebar can be collapsed to its activity rail while preserving quick access to each panel.
+- Offline Markdown analysis now reports richer document statistics: line count, effective lines, character/word count, reading time, headings, lists, tasks, links, images, tables, formulas, code blocks, blockquotes, syntax coverage, and heading depth.
+- Markdown analysis now includes share-readiness and readability scores, strengths, and local improvement recommendations.
+- Analysis view now has a standalone dashboard with document profile, score bars, syntax coordinate map, content composition, task progress, code language distribution, section distribution, and insight cards.
+
+### Changed
+
+- Local document library moved out of the editor column and into the right sidebar file-system view, so the editor stays focused on writing.
+- Theme, canvas size, and templates moved into the right sidebar style view.
+- Convert, export, and share controls are grouped under the right sidebar conversion/export view.
+- Playwright coverage now checks sidebar tabs, resizable separators, and the upgraded analysis view.
+
+### Compatibility
+
+- Still a static offline-first browser app. The new workspace layout, sidebar, resizing behavior, and richer analysis are all local browser features with no backend, sync account, telemetry, or upload flow.
+
 ## [1.1.0] - 2026-05-15
 
 ### Added

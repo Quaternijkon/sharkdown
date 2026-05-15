@@ -283,7 +283,7 @@ export function DocumentLibraryPanel({ onNotice }: DocumentLibraryPanelProps) {
   }
 
   return (
-    <section className="flex max-h-[46vh] min-h-[320px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <section className="flex min-h-[420px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white xl:h-[calc(100vh-130px)]">
       <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-800">
           <FolderOpen size={17} />
