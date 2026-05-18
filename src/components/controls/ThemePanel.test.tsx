@@ -1,10 +1,16 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ThemePanel } from './ThemePanel';
+import { DEFAULT_DOCUMENT_STATE, useEditorStore } from '../../store/useEditorStore';
 import { themePresets } from '../../themes/presets';
 
 describe('ThemePanel', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useEditorStore.setState(DEFAULT_DOCUMENT_STATE);
+  });
+
   it('renders compact theme swatch buttons without repeating every description', () => {
     render(<ThemePanel />);
 
@@ -14,5 +20,17 @@ describe('ThemePanel', () => {
     }
 
     expect(screen.getByText('Claude 暖纸')).toBeInTheDocument();
+  });
+
+  it('switches between Markdown and People Daily layout modes', () => {
+    render(<ThemePanel />);
+
+    fireEvent.click(screen.getByRole('button', { name: '人民日报排版' }));
+
+    expect(useEditorStore.getState().layoutMode).toBe('people-daily');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown 文档' }));
+
+    expect(useEditorStore.getState().layoutMode).toBe('markdown');
   });
 });

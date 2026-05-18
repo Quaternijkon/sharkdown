@@ -92,6 +92,9 @@ textarea {
 
 .sharkdown-editor-surface .w-md-editor-toolbar {
   border-bottom-color: #e2e8f0;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
 }
 
 .sharkdown-editor-surface .w-md-editor-text,

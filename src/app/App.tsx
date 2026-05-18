@@ -381,19 +381,30 @@ export function App() {
           />
           <div>
             <h1 className="text-lg font-semibold leading-tight">Sharkdown</h1>
-            <div className="text-xs text-slate-300">离线 Markdown 分享工作台</div>
+            <div className="text-xs text-slate-300">share markdown！</div>
           </div>
         </div>
-        <div
-          className={`max-w-full rounded-md border px-3 py-1 text-sm ${
-            notice.tone === 'error'
-              ? 'border-rose-500 bg-rose-950 text-rose-100'
-              : notice.tone === 'success'
-                ? 'border-emerald-500 bg-emerald-950 text-emerald-100'
-                : 'border-slate-700 bg-slate-900 text-slate-200'
-          }`}
-        >
-          {busy ? 'Working...' : notice.message}
+        <div className="flex items-center gap-2">
+          <a
+            href="https://github.com/Quaternijkon/sharkdown"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub 仓库"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
+          >
+            <GitHubMark />
+          </a>
+          <div
+            className={`max-w-full rounded-md border px-3 py-1 text-sm ${
+              notice.tone === 'error'
+                ? 'border-rose-500 bg-rose-950 text-rose-100'
+                : notice.tone === 'success'
+                  ? 'border-emerald-500 bg-emerald-950 text-emerald-100'
+                  : 'border-slate-700 bg-slate-900 text-slate-200'
+            }`}
+          >
+            {busy ? 'Working...' : notice.message}
+          </div>
         </div>
       </header>
 
@@ -514,4 +525,12 @@ function targetLabel(targetId: ConvertTargetId): string {
     generic: '通用',
   };
   return labels[targetId] ?? '转换';
+}
+
+function GitHubMark() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
+      <path d="M8 0C3.58 0 0 3.67 0 8.2c0 3.62 2.29 6.69 5.47 7.78.4.08.55-.18.55-.4v-1.53c-2.23.5-2.7-.98-2.7-.98-.36-.95-.89-1.2-.89-1.2-.73-.51.06-.5.06-.5.81.06 1.24.85 1.24.85.72 1.27 1.9.9 2.36.69.07-.53.28-.9.51-1.1-1.78-.21-3.64-.91-3.64-4.05 0-.89.31-1.62.83-2.2-.08-.21-.36-1.04.08-2.16 0 0 .68-.22 2.2.84A7.45 7.45 0 0 1 8 3.97c.68 0 1.36.09 2 .27 1.52-1.06 2.2-.84 2.2-.84.44 1.12.16 1.95.08 2.16.52.58.83 1.31.83 2.2 0 3.15-1.87 3.84-3.65 4.05.29.25.54.76.54 1.55v2.26c0 .22.14.48.55.4A8.12 8.12 0 0 0 16 8.2C16 3.67 12.42 0 8 0Z" />
+    </svg>
+  );
 }
