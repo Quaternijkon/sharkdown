@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { getCodeHighlightTheme } from './codeHighlightTheme';
 import { useEditorStore } from '../store/useEditorStore';
 
 interface CodeBlockProps {
@@ -77,8 +78,4 @@ export function CodeBlock({ code, language = 'text' }: CodeBlockProps) {
 function normalizeLanguage(language: string): string {
   const cleanLanguage = language.toLowerCase().trim();
   return supportedLanguageAliases[cleanLanguage] ?? cleanLanguage ?? 'text';
-}
-
-export function getCodeHighlightTheme(themeId: string): 'github-light' | 'github-dark' {
-  return ['douyin', 'black-gold'].includes(themeId) ? 'github-dark' : 'github-light';
 }

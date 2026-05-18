@@ -174,14 +174,13 @@ interface NewspaperImageProps {
 }
 
 function NewspaperImage({ image }: NewspaperImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<{ source: string; src: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const localReference = parseLocalImageReference(image?.src);
 
     if (!image?.src || !localReference) {
-      setResolvedSrc(null);
       return;
     }
 
@@ -191,7 +190,7 @@ function NewspaperImage({ image }: NewspaperImageProps) {
       }
       const src = await readBlobAsDataUrl(asset.blob);
       if (!cancelled) {
-        setResolvedSrc(src);
+        setResolved({ source: image.src, src });
       }
     });
 
@@ -205,7 +204,7 @@ function NewspaperImage({ image }: NewspaperImageProps) {
   }
 
   const localReference = parseLocalImageReference(image.src);
-  const src = localReference ? resolvedSrc : image.src;
+  const src = localReference ? (resolved?.source === image.src ? resolved.src : null) : image.src;
 
   if (!src) {
     return <div className="people-daily-photo people-daily-photo--empty">{image.alt || '图片加载中'}</div>;

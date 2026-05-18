@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCodeHighlightTheme } from './CodeBlock';
+import { getCodeHighlightTheme } from './codeHighlightTheme';
 
 describe('getCodeHighlightTheme', () => {
   it('uses a dark Shiki theme for dark Sharkdown themes', () => {

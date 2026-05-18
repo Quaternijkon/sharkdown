@@ -6,6 +6,7 @@ test('renders the editor, preview, themes, formulas, diagrams, and export contro
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'Sharkdown', exact: true })).toBeVisible();
+  await expect(page.getByText('share markdown！', { exact: true })).toBeVisible();
   await expect(page.getByRole('tab', { name: '转换导出' })).toBeVisible();
   await expect(page.getByRole('tab', { name: '外观样式' })).toBeVisible();
   await expect(page.getByRole('tab', { name: '分析评估' })).toBeVisible();
@@ -14,7 +15,7 @@ test('renders the editor, preview, themes, formulas, diagrams, and export contro
   await expect(page.getByRole('separator', { name: '调整预览和右侧栏宽度' })).toBeVisible();
   await expect(page.getByRole('button', { name: '下载 PNG' })).toBeVisible();
   await expect(page.getByRole('button', { name: '复制 PNG 图片' })).toBeVisible();
-  await expect(page.getByText('Share Markdown')).toBeVisible();
+  await expect(page.getByText('Share Markdown', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '导出 .sharkdown 工程包' })).toBeVisible();
   await expect(page.getByRole('button', { name: '导出自包含 HTML' })).toBeVisible();
 
