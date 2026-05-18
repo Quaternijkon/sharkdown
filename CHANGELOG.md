@@ -2,6 +2,33 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [1.3.0] - 2026-05-18
+
+### Added
+
+- Added a new People's Daily layout mode as a static offline newspaper-style renderer.
+- Markdown is now treated as semantic source data in People's Daily mode; the rendered result is an automatically typeset newspaper page rather than a Markdown preview skin.
+- People's Daily mode chooses between multi-story front-page composition, long-article continuous multi-column layout, and compact brief layout based on source content length and section structure.
+- Long newspaper content now renders as stacked continuation pages with masthead, page number, column rules, and dense serif body text.
+- The style panel now separates layout mode from visual theme, with controls for normal Markdown documents and People's Daily layout.
+- Added a GitHub repository link in the app header.
+
+### Changed
+
+- Header slogan changed to `share markdown！`.
+- Markdown editor now relies on `@uiw/react-md-editor`'s built-in command toolbar instead of Sharkdown's old duplicate custom formatting toolbar.
+- The editor formatting toolbar is kept accessible at the bottom of the editing surface for long documents.
+- Dark themes now use a dark Shiki code highlighting theme, preventing dark syntax text from appearing on dark code backgrounds.
+- README now documents the layout-mode architecture, People's Daily renderer, static privacy model, and release maintenance policy.
+
+### Removed
+
+- Removed Sharkdown's custom Markdown formatting command helper and its duplicate toolbar tests because formatting now comes from the editor library.
+
+### Compatibility
+
+- Still a static offline-first browser app. The newspaper layout engine is deterministic client-side React/CSS and introduces no backend, account system, telemetry, upload flow, or server rendering.
+
 ## [1.2.0] - 2026-05-16
 
 ### Added
