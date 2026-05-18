@@ -2,9 +2,11 @@ export type ImageExportFormat = 'png' | 'jpeg' | 'svg' | 'webp';
 export type ExportFormat = ImageExportFormat | 'pdf';
 export type PdfPageSize = 'a4' | 'letter';
 export type PdfOrientation = 'portrait' | 'landscape';
+export type LayoutMode = 'markdown' | 'people-daily';
 
 export interface DocumentState {
   markdown: string;
+  layoutMode: LayoutMode;
   themeId: string;
   width: number;
   padding: number;

@@ -45,6 +45,7 @@ flowchart LR
 
 export const DEFAULT_DOCUMENT_STATE: DocumentState = {
   markdown: DEFAULT_MARKDOWN,
+  layoutMode: 'markdown',
   themeId: 'claude',
   width: 720,
   padding: 48,
@@ -74,6 +75,7 @@ export const useEditorStore = create<EditorStore>()(
       name: 'sharkdown-document-state',
       partialize: (state) => ({
         markdown: state.markdown,
+        layoutMode: state.layoutMode,
         themeId: state.themeId,
         width: state.width,
         padding: state.padding,
