@@ -90,13 +90,6 @@ textarea {
   min-height: 420px;
 }
 
-.sharkdown-editor-surface .w-md-editor-toolbar {
-  border-bottom-color: #e2e8f0;
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-}
-
 .sharkdown-editor-surface .w-md-editor-text,
 .sharkdown-editor-surface .w-md-editor-text-input,
 .sharkdown-editor-surface .w-md-editor-text-pre {
@@ -109,4 +102,91 @@ textarea {
     monospace;
   font-size: 14px !important;
   line-height: 1.65 !important;
+}
+
+.sharkdown-floating-markdown-toolbar {
+  align-items: center;
+  backdrop-filter: blur(14px);
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  bottom: 16px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.34);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  left: 50%;
+  max-width: min(760px, calc(100vw - 24px));
+  padding: 6px;
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 70;
+}
+
+.sharkdown-floating-markdown-toolbar button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #e2e8f0;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+  width: 32px;
+}
+
+.sharkdown-floating-markdown-toolbar button:hover,
+.sharkdown-floating-markdown-toolbar button:focus-visible {
+  background: rgba(20, 184, 166, 0.18);
+  border-color: rgba(45, 212, 191, 0.5);
+  color: #ffffff;
+  outline: none;
+}
+
+.sharkdown-editor-context-menu {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+  color: #0f172a;
+  display: grid;
+  gap: 6px;
+  max-height: min(520px, calc(100vh - 24px));
+  min-width: 220px;
+  overflow: auto;
+  padding: 8px;
+  position: fixed;
+  z-index: 80;
+}
+
+.sharkdown-editor-context-menu__section {
+  display: grid;
+  gap: 2px;
+}
+
+.sharkdown-editor-context-menu__section > span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 7px 3px;
+}
+
+.sharkdown-editor-context-menu button {
+  align-items: center;
+  border-radius: 7px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 7px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.sharkdown-editor-context-menu button:hover,
+.sharkdown-editor-context-menu button:focus-visible {
+  background: #f1f5f9;
+  outline: none;
 }

@@ -2,35 +2,21 @@
 
 Sharkdown 是一个纯静态、离线优先的 **share markdown！** 工作台。它把 Markdown 转换成适合社交媒体、文档、图片、PDF、HTML 和本地备份的分享产物。所有编辑、渲染、分析、打包和导出都在当前浏览器中完成，不依赖后端、账号、云同步、遥测或上传流程。
 
-当前版本：`1.3.0`。
+当前版本：`1.4.0`。
 
 ## 核心能力
 
 - 三栏工作台：左侧 Markdown 编辑，中间实时预览，右侧 VS Code 风格活动侧栏。
 - 可调列宽：桌面端可拖拽编辑器、预览、右侧栏之间的分隔条。
-- 在线 Markdown 编辑器：基于 `@uiw/react-md-editor`，使用其内置格式工具栏；Sharkdown 只保留文档动作按钮，如恢复示例、插入本地图片、复制、清空。
+- 在线 Markdown 编辑器：基于 `@uiw/react-md-editor`，提供固定浮动格式工具栏；Sharkdown 只保留文档动作按钮，如恢复示例、插入本地图片、复制、清空。
+- 编辑右键菜单：在编辑区右键会打开 Sharkdown 的 Markdown 菜单，可插入常用语法模板并调用格式命令，不触发浏览器默认菜单。
 - 本地图片：粘贴或选择图片后以 `local-image://` 短引用插入，Blob 存在浏览器 IndexedDB 中。
 - 外观主题：Claude 暖纸、GPT 黑白灰、Apple 艺术、Google 四元色、WeChat 清绿、Douyin 霓虹、黑黄会心一笑、GitHub、纸张。
-- 版式模式：支持普通 Markdown 文档和“人民日报排版”两种渲染模式。
-- 人民日报排版：Markdown 只作为输入源，渲染结果会自动转成报纸式页面；多短文生成头版拼版，单篇长文生成通栏标题和连续多栏正文，长内容自动分页。
 - 独立分析评估页：统计语法覆盖、代码语言、章节占比、任务完成度、阅读时间、结构清晰度、内容完整度、分享可用性等离线指标。
 - 本地文档库：浏览器缓存中的轻量文档管理、虚拟文件树、搜索、标签、归档、未保存提示、JSON 备份导出和导入。
 - Convert 工作区：围绕分享目标生成图片、HTML 片段、富文本、Markdown、纯文本、PDF、ZIP 和 `.sharkdown` 工程包。
 - 导出格式：PNG/JPEG/WebP/SVG、长图切片 PNG、文字版 PDF 打印、HTML、HTML fragment、rich text、Markdown、plain text、ZIP。
 - PWA 静态壳：首次在线打开后可缓存应用壳，支持离线重新打开。
-
-## 人民日报排版模式
-
-人民日报模式不是主题，而是一个轻量内容流排版器：
-
-- Markdown 标题、段落、图片、表格、代码、公式、引用和列表会被解析成语义内容；
-- 系统根据标题数量、段落长度、章节数量和图片数量判断内容形态；
-- 多个短章节会排成接近报纸头版的高密度拼版；
-- 一个长标题或一篇长文章会排成通栏大标题与连续多栏正文，不强行拆块；
-- 内容过长会生成续版页面，保留报头、页码、栏宽、栏线和新闻纸质感；
-- 图片导出和 PDF 打印都使用同一个预览 DOM，尽量保证预览与导出一致。
-
-这个模式保持离线静态架构，不引入后端，也不是完整 TeX/Typst 引擎。它的目标是给 Markdown 分享增加一种“已经排好版的报纸页面”输出能力。
 
 ## 技术栈
 
@@ -65,13 +51,12 @@ npx playwright test
 src/
   app/                       页面编排、导出动作、状态提示、页眉入口
   components/editor/         Markdown 编辑器、本地图片插入、文档动作
-  components/preview/        普通预览、人民日报排版、导出目标 DOM
-  components/controls/       主题、版式、画布尺寸和模板控制
+  components/preview/        Markdown 预览、导出目标 DOM
+  components/controls/       主题、画布尺寸和模板控制
   components/workspace/      三栏布局、右侧活动栏、列宽约束
   components/convert/        Convert 工作区、平台预设、预检和轮播拆分
   components/library/        本地文档库、虚拟文件树、备份导入导出
   components/analysis/       离线 Markdown 分析评估面板
-  layouts/                   内容流排版模型，目前包含人民日报版式
   markdown/                  Markdown 渲染、Shiki 代码块、Mermaid、sanitize schema
   export/                    图片/PDF/ZIP/切片/剪贴板导出工具
   share/                     .sharkdown、HTML、URL fragment、隐私扫描、剪贴板格式
@@ -113,7 +98,7 @@ npm run build
 npx playwright test
 ```
 
-单元测试覆盖主题预设、版式模式、人民日报排版选择、Markdown 渲染、代码高亮、导出选项、本地图片、文档库、分析算法、分享包、PWA 策略等。Playwright 测试覆盖页面加载、预览渲染、公式、Mermaid、Convert 工作区和导出按钮。
+单元测试覆盖主题预设、Markdown 渲染、代码高亮、导出选项、本地图片、文档库、分析算法、分享包、PWA 策略、编辑器工具栏和右键菜单等。Playwright 测试覆盖页面加载、预览渲染、公式、Mermaid、Convert 工作区和导出按钮。
 
 ## 版本维护
 
@@ -127,7 +112,7 @@ npx playwright test
 版本策略：
 
 - 修复导出错误、样式错位、兼容性问题：递增 patch，例如 `1.3.1`。
-- 增加新的转换格式、版式模式、平台预设、重要 UI 工作流：递增 minor，例如 `1.4.0`。
+- 增加新的转换格式、平台预设、重要 UI 工作流：递增 minor，例如 `1.4.0`。
 - 破坏 `.sharkdown`、文档库、模板或导出 manifest 兼容性：递增 major，并在 changelog 写清迁移方式。
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。

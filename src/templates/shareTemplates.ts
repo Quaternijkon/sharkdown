@@ -11,6 +11,26 @@ export interface ShareTemplate {
   recommendedArtifacts: ShareArtifactKind[];
 }
 
+export type ShareTemplatePresetSettings = {
+  themeId: string;
+  width: number;
+  padding: number;
+  radius: number;
+  fontScale: number;
+  background: string;
+  allowRawHtml: boolean;
+};
+
+const DEFAULT_TEMPLATE_PRESET_SETTINGS: ShareTemplatePresetSettings = {
+  themeId: 'claude',
+  width: 720,
+  padding: 48,
+  radius: 18,
+  fontScale: 1,
+  background: '#ffffff',
+  allowRawHtml: false,
+};
+
 export const SHARE_TEMPLATES: ShareTemplate[] = [
   {
     id: 'social-card',
@@ -115,4 +135,11 @@ export const SHARE_TEMPLATES: ShareTemplate[] = [
 
 export function getTemplateById(id: string): ShareTemplate | undefined {
   return SHARE_TEMPLATES.find((template) => template.id === id);
+}
+
+export function getTemplatePresetSettings(template: ShareTemplate): ShareTemplatePresetSettings {
+  return {
+    ...DEFAULT_TEMPLATE_PRESET_SETTINGS,
+    themeId: template.themeId,
+  };
 }

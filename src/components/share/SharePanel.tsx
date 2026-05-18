@@ -265,7 +265,6 @@ export function SharePanel({ previewRef, onNotice }: SharePanelProps) {
 
 function useCurrentDocumentState(): DocumentState {
   const markdown = useEditorStore((state) => state.markdown);
-  const layoutMode = useEditorStore((state) => state.layoutMode);
   const themeId = useEditorStore((state) => state.themeId);
   const width = useEditorStore((state) => state.width);
   const padding = useEditorStore((state) => state.padding);
@@ -275,7 +274,6 @@ function useCurrentDocumentState(): DocumentState {
   const allowRawHtml = useEditorStore((state) => state.allowRawHtml);
   return {
     markdown,
-    layoutMode,
     themeId,
     width,
     padding,

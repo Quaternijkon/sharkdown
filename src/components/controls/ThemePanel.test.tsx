@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ThemePanel } from './ThemePanel';
@@ -22,15 +22,10 @@ describe('ThemePanel', () => {
     expect(screen.getByText('Claude 暖纸')).toBeInTheDocument();
   });
 
-  it('switches between Markdown and People Daily layout modes', () => {
+  it('does not expose the removed People Daily layout mode', () => {
     render(<ThemePanel />);
 
-    fireEvent.click(screen.getByRole('button', { name: '人民日报排版' }));
-
-    expect(useEditorStore.getState().layoutMode).toBe('people-daily');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown 文档' }));
-
-    expect(useEditorStore.getState().layoutMode).toBe('markdown');
+    expect(screen.queryByRole('button', { name: '人民日报排版' })).not.toBeInTheDocument();
+    expect(screen.queryByText('版式')).not.toBeInTheDocument();
   });
 });

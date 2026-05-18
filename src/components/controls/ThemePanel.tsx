@@ -5,45 +5,11 @@ import { themePresets } from '../../themes/presets';
 
 export function ThemePanel() {
   const themeId = useEditorStore((state) => state.themeId);
-  const layoutMode = useEditorStore((state) => state.layoutMode);
   const updateSettings = useEditorStore((state) => state.updateSettings);
   const selectedTheme = themePresets.find((theme) => theme.id === themeId) ?? themePresets[0];
 
   return (
     <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
-      <div>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-800">版式</h2>
-          <div className="text-[11px] text-slate-500">
-            {layoutMode === 'people-daily' ? '报纸排版' : '常规预览'}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2" role="list" aria-label="版式列表">
-          <button
-            type="button"
-            onClick={() => updateSettings({ layoutMode: 'markdown' })}
-            className={`rounded-md border px-3 py-2 text-left text-xs font-semibold transition hover:border-slate-400 ${
-              layoutMode === 'markdown' ? 'border-teal-700 bg-teal-50 text-teal-900' : 'border-slate-200 text-slate-700'
-            }`}
-            aria-pressed={layoutMode === 'markdown'}
-          >
-            Markdown 文档
-          </button>
-          <button
-            type="button"
-            onClick={() => updateSettings({ layoutMode: 'people-daily' })}
-            className={`rounded-md border px-3 py-2 text-left text-xs font-semibold transition hover:border-slate-400 ${
-              layoutMode === 'people-daily'
-                ? 'border-red-700 bg-red-50 text-red-900'
-                : 'border-slate-200 text-slate-700'
-            }`}
-            aria-pressed={layoutMode === 'people-daily'}
-          >
-            人民日报排版
-          </button>
-        </div>
-      </div>
-
       <div>
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-800">主题</h2>

@@ -2,6 +2,25 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [1.4.0] - 2026-05-19
+
+### Added
+
+- Added a fixed floating Markdown command toolbar powered by `@uiw/react-md-editor` commands, so formatting remains available while editing long documents.
+- Added a custom editor right-click menu for Markdown formatting commands and common syntax templates such as task lists, Mermaid diagrams, formula blocks, and tables.
+- Added template preset parameter reset, allowing users to restore the selected template's theme, canvas, typography, background, and raw HTML defaults without replacing the current Markdown draft.
+
+### Changed
+
+- Removed the People's Daily layout mode from the product surface, preview renderer, document state, persistence, README, and implementation docs.
+- Legacy imported project or library state is now sanitized before updating the editor store, so removed fields such as `layoutMode` are ignored.
+- Template application now restores the selected template's full preset settings instead of changing only the theme.
+
+### Compatibility
+
+- Still a static offline-first browser app with no backend, sync account, telemetry, upload flow, or server rendering.
+- Existing `.sharkdown` files or local library records that contain the removed `layoutMode` field continue to import; the obsolete field is dropped.
+
 ## [1.3.0] - 2026-05-18
 
 ### Added

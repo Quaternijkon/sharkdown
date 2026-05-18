@@ -45,7 +45,6 @@ flowchart LR
 
 export const DEFAULT_DOCUMENT_STATE: DocumentState = {
   markdown: DEFAULT_MARKDOWN,
-  layoutMode: 'markdown',
   themeId: 'claude',
   width: 720,
   padding: 48,
@@ -57,9 +56,35 @@ export const DEFAULT_DOCUMENT_STATE: DocumentState = {
 
 interface EditorStore extends DocumentState {
   setMarkdown: (markdown: string) => void;
-  updateSettings: (settings: Partial<Omit<DocumentState, 'markdown'>>) => void;
+  updateSettings: (settings: Partial<DocumentState>) => void;
   resetDocument: () => void;
   clearMarkdown: () => void;
+}
+
+export function pickDocumentSettings(settings: Partial<DocumentState>): Partial<Omit<DocumentState, 'markdown'>> {
+  const next: Partial<Omit<DocumentState, 'markdown'>> = {};
+  if (typeof settings.themeId === 'string') {
+    next.themeId = settings.themeId;
+  }
+  if (typeof settings.width === 'number') {
+    next.width = settings.width;
+  }
+  if (typeof settings.padding === 'number') {
+    next.padding = settings.padding;
+  }
+  if (typeof settings.radius === 'number') {
+    next.radius = settings.radius;
+  }
+  if (typeof settings.fontScale === 'number') {
+    next.fontScale = settings.fontScale;
+  }
+  if (typeof settings.background === 'string') {
+    next.background = settings.background;
+  }
+  if (typeof settings.allowRawHtml === 'boolean') {
+    next.allowRawHtml = settings.allowRawHtml;
+  }
+  return next;
 }
 
 export const useEditorStore = create<EditorStore>()(
@@ -67,7 +92,7 @@ export const useEditorStore = create<EditorStore>()(
     (set) => ({
       ...DEFAULT_DOCUMENT_STATE,
       setMarkdown: (markdown) => set({ markdown }),
-      updateSettings: (settings) => set(settings),
+      updateSettings: (settings) => set(pickDocumentSettings(settings)),
       resetDocument: () => set(DEFAULT_DOCUMENT_STATE),
       clearMarkdown: () => set({ markdown: '' }),
     }),
@@ -75,7 +100,6 @@ export const useEditorStore = create<EditorStore>()(
       name: 'sharkdown-document-state',
       partialize: (state) => ({
         markdown: state.markdown,
-        layoutMode: state.layoutMode,
         themeId: state.themeId,
         width: state.width,
         padding: state.padding,

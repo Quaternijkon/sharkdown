@@ -1,13 +1,11 @@
 import { forwardRef, type CSSProperties } from 'react';
 
 import { MarkdownRenderer } from '../../markdown/MarkdownRenderer';
-import { PeopleDailyRenderer } from './PeopleDailyRenderer';
 import { useEditorStore } from '../../store/useEditorStore';
 import { getThemeById } from '../../themes/presets';
 
 export const PreviewFrame = forwardRef<HTMLDivElement>(function PreviewFrame(_, ref) {
   const markdown = useEditorStore((state) => state.markdown);
-  const layoutMode = useEditorStore((state) => state.layoutMode);
   const themeId = useEditorStore((state) => state.themeId);
   const width = useEditorStore((state) => state.width);
   const padding = useEditorStore((state) => state.padding);
@@ -17,17 +15,14 @@ export const PreviewFrame = forwardRef<HTMLDivElement>(function PreviewFrame(_, 
   const allowRawHtml = useEditorStore((state) => state.allowRawHtml);
   const theme = getThemeById(themeId);
 
-  const isPeopleDailyLayout = layoutMode === 'people-daily';
   const frameStyle = {
     ...theme.cssVars,
     width: `${width}px`,
-    padding: isPeopleDailyLayout ? '0' : `${padding}px`,
-    borderRadius: isPeopleDailyLayout ? '0' : `${radius}px`,
+    padding: `${padding}px`,
+    borderRadius: `${radius}px`,
     fontSize: `${fontScale}rem`,
   } as CSSProperties;
-  const frameClassName = isPeopleDailyLayout
-    ? 'markdown-export-frame sharkdown-layout-people-daily'
-    : `markdown-export-frame sharkdown-prose ${theme.proseClassName ?? ''}`;
+  const frameClassName = `markdown-export-frame sharkdown-prose ${theme.proseClassName ?? ''}`;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -44,11 +39,7 @@ export const PreviewFrame = forwardRef<HTMLDivElement>(function PreviewFrame(_, 
             className={frameClassName}
             style={frameStyle}
           >
-            {isPeopleDailyLayout ? (
-              <PeopleDailyRenderer markdown={markdown || '\u00A0'} />
-            ) : (
-              <MarkdownRenderer markdown={markdown || '\u00A0'} allowRawHtml={allowRawHtml} />
-            )}
+            <MarkdownRenderer markdown={markdown || '\u00A0'} allowRawHtml={allowRawHtml} />
           </article>
         </div>
       </div>

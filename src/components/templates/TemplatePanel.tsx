@@ -1,8 +1,8 @@
-import { LayoutTemplate } from 'lucide-react';
+import { LayoutTemplate, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { ToolbarButton } from '../common/Toolbar';
-import { SHARE_TEMPLATES } from '../../templates/shareTemplates';
+import { getTemplatePresetSettings, SHARE_TEMPLATES } from '../../templates/shareTemplates';
 import { useEditorStore } from '../../store/useEditorStore';
 
 interface TemplatePanelProps {
@@ -25,19 +25,33 @@ export function TemplatePanel({ onNotice }: TemplatePanelProps) {
           <LayoutTemplate size={17} />
           <span>分享模板</span>
         </div>
-        <ToolbarButton
-          icon={<LayoutTemplate size={16} />}
-          label="应用模板"
-          text="应用"
-          onClick={() => {
-            if (!selectedTemplate) {
-              return;
-            }
-            setMarkdown(selectedTemplate.markdown);
-            updateSettings({ themeId: selectedTemplate.themeId });
-            onNotice(`已应用模板：${selectedTemplate.name}`, 'success');
-          }}
-        />
+        <div className="flex items-center gap-1">
+          <ToolbarButton
+            icon={<RotateCcw size={16} />}
+            label="恢复预设参数"
+            text="重置"
+            onClick={() => {
+              if (!selectedTemplate) {
+                return;
+              }
+              updateSettings(getTemplatePresetSettings(selectedTemplate));
+              onNotice(`已恢复模板预设参数：${selectedTemplate.name}`, 'success');
+            }}
+          />
+          <ToolbarButton
+            icon={<LayoutTemplate size={16} />}
+            label="应用模板"
+            text="应用"
+            onClick={() => {
+              if (!selectedTemplate) {
+                return;
+              }
+              setMarkdown(selectedTemplate.markdown);
+              updateSettings(getTemplatePresetSettings(selectedTemplate));
+              onNotice(`已应用模板：${selectedTemplate.name}`, 'success');
+            }}
+          />
+        </div>
       </div>
       <select
         value={selectedId}
