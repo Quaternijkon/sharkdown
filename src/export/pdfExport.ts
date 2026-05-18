@@ -57,7 +57,7 @@ export function buildPdfPrintDocument(source: HTMLElement, settings: PdfExportSe
   root.setAttribute('data-sharkdown-print-root', '');
   root.className = 'sharkdown-pdf-print-root';
   copyPreviewVariables(source, root);
-  root.style.setProperty('--sharkdown-pdf-background', settings.backgroundColor);
+  root.style.setProperty('--sharkdown-pdf-background', resolveRenderedBackgroundColor(source, settings.backgroundColor));
 
   if (settings.includeHeaderFooter) {
     root.append(createPrintTitle(settings));
@@ -77,6 +77,7 @@ export function buildPdfPrintDocument(source: HTMLElement, settings: PdfExportSe
 }
 
 export function createPdfPrintStyles(settings: PdfExportSettings): string {
+  const pageBackground = normalizeCssColor(settings.backgroundColor, DEFAULT_PDF_SETTINGS.backgroundColor);
   const pageNumberRule = settings.includePageNumbers
     ? `
     @bottom-center {
@@ -98,6 +99,7 @@ export function createPdfPrintStyles(settings: PdfExportSettings): string {
 @page {
   size: ${settings.pageSize} ${settings.orientation};
   margin: ${settings.margin}pt;
+  background: ${pageBackground};
   ${headerRule}
   ${pageNumberRule}
 }
@@ -117,7 +119,7 @@ export function createPdfPrintStyles(settings: PdfExportSettings): string {
 @media print {
   html,
   body {
-    background: var(--sharkdown-pdf-background, #ffffff) !important;
+    background: ${pageBackground} !important;
     height: auto !important;
     overflow: visible !important;
     width: auto !important;
@@ -132,7 +134,7 @@ export function createPdfPrintStyles(settings: PdfExportSettings): string {
   }
 
   [data-sharkdown-print-root] {
-    background: var(--sharkdown-pdf-background, #ffffff) !important;
+    background: ${pageBackground} !important;
     box-sizing: border-box !important;
     color: var(--preview-text, #111827) !important;
     display: block !important;
@@ -250,8 +252,12 @@ export async function exportPreviewAsPdf(
   element: HTMLElement,
   partialSettings: Partial<PdfExportSettings>,
 ): Promise<void> {
-  const settings = resolvePdfSettings(partialSettings);
+  const initialSettings = resolvePdfSettings(partialSettings);
   await waitForPreviewReady(element, { maxHeight: Number.POSITIVE_INFINITY });
+  const settings = {
+    ...initialSettings,
+    backgroundColor: resolveRenderedBackgroundColor(element, initialSettings.backgroundColor),
+  };
 
   const printRoot = buildPdfPrintDocument(element, settings);
   const style = document.createElement('style');
@@ -283,6 +289,24 @@ function copyPreviewVariables(source: HTMLElement, target: HTMLElement): void {
       target.style.setProperty(property, source.style.getPropertyValue(property));
     }
   }
+}
+
+function resolveRenderedBackgroundColor(source: HTMLElement, fallback: string): string {
+  const computedBackground = window.getComputedStyle(source).backgroundColor;
+  if (isOpaqueColor(computedBackground)) {
+    return computedBackground;
+  }
+  return normalizeCssColor(fallback, DEFAULT_PDF_SETTINGS.backgroundColor);
+}
+
+function normalizeCssColor(value: string, fallback: string): string {
+  const probe = document.createElement('span');
+  probe.style.backgroundColor = value;
+  return probe.style.backgroundColor || fallback;
+}
+
+function isOpaqueColor(value: string): boolean {
+  return Boolean(value && value !== 'transparent' && value !== 'rgba(0, 0, 0, 0)');
 }
 
 function prepareHeadings(root: HTMLElement): PdfHeadingEntry[] {

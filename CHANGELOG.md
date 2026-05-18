@@ -2,6 +2,17 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [1.4.1] - 2026-05-19
+
+### Fixed
+
+- PDF export now uses the rendered preview document background for print pages, so dark themes such as Douyin and black-gold no longer export as white pages with light text.
+- PDF print CSS now writes a concrete page/body background color instead of relying on a custom property scoped to the hidden print root.
+
+### Compatibility
+
+- Still a selectable-text browser print PDF path. No image-based PDF fallback, backend, upload flow, or server rendering was introduced.
+
 ## [1.4.0] - 2026-05-19
 
 ### Added
