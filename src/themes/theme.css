@@ -488,6 +488,31 @@
   text-align: center;
 }
 
+.people-daily-continuation-stories {
+  display: grid;
+  flex: 1;
+  gap: 1.1%;
+  grid-auto-rows: minmax(0, auto);
+  overflow: hidden;
+}
+
+.people-daily-continuation-story {
+  border-bottom: 1px solid #bcb3a3;
+  min-width: 0;
+  padding-bottom: 0.8%;
+}
+
+.people-daily-continuation-story h2 {
+  border: 0;
+  color: #111111;
+  font-family: 'SimSun', 'Songti SC', 'Noto Serif SC', serif;
+  font-size: clamp(1rem, 2vw, 1.55rem);
+  font-weight: 900;
+  line-height: 1.14;
+  margin: 0 0 0.35em;
+  padding: 0;
+}
+
 .people-daily-photo {
   background: #d8d1c3;
   border: 1px solid #8f8677;

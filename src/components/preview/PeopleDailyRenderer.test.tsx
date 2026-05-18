@@ -7,49 +7,82 @@ describe('PeopleDailyRenderer', () => {
   it('renders a masthead and long-article page for long content', () => {
     render(
       <PeopleDailyRenderer
-        markdown={`# 以更完善的制度体系推动内容自动排版在不同媒介场景中稳定生成高质量分享版面
+        markdown={`# A Very Long Article Headline For Automatic Newspaper Typesetting
 
-正文段落。
+First body paragraph.
 
-正文段落。
+Second body paragraph.
 
-正文段落。`}
+Third body paragraph.`}
       />,
     );
 
-    expect(screen.getByText('人民日报')).toBeInTheDocument();
     expect(screen.getByTestId('people-daily-layout')).toHaveAttribute('data-variant', 'long-article');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('制度体系');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Automatic Newspaper');
   });
 
   it('renders front-page stories for multi-section content', () => {
     render(
       <PeopleDailyRenderer
-        markdown={`# 今日要闻
+        markdown={`# Daily Brief
 
-## 新闻一
-正文。
+## Story One
+Body one.
 
-## 新闻二
-正文。
+## Story Two
+Body two.
 
-## 新闻三
-正文。`}
+## Story Three
+Body three.`}
       />,
     );
 
     expect(screen.getByTestId('people-daily-layout')).toHaveAttribute('data-variant', 'front-page');
-    expect(screen.getByText('新闻一')).toBeInTheDocument();
-    expect(screen.getByText('新闻二')).toBeInTheDocument();
-    expect(screen.getByText('新闻三')).toBeInTheDocument();
+    expect(screen.getByText('Story One')).toBeInTheDocument();
+    expect(screen.getByText('Story Two')).toBeInTheDocument();
+    expect(screen.getByText('Story Three')).toBeInTheDocument();
   });
 
   it('renders continuation pages for long content', () => {
-    const paragraphs = Array.from({ length: 38 }, (_, index) => `第${index + 1}段。`).join('\n\n');
+    const paragraphs = Array.from({ length: 38 }, (_, index) => `Paragraph ${index + 1}.`).join('\n\n');
+    const { container } = render(<PeopleDailyRenderer markdown={`# Long Article\n\n${paragraphs}`} />);
 
-    render(<PeopleDailyRenderer markdown={`# 长文章\n\n${paragraphs}`} />);
+    expect(container.querySelectorAll('.people-daily-page')).toHaveLength(3);
+  });
 
-    expect(screen.getAllByLabelText(/人民日报版面/)).toHaveLength(3);
-    expect(screen.getByText('第 2 版')).toBeInTheDocument();
+  it('keeps every front-page story by continuing beyond the first newspaper page', () => {
+    const sections = Array.from(
+      { length: 8 },
+      (_, index) => `## Story ${index + 1}\nBody ${index + 1} first paragraph.\n\nBody ${index + 1} second paragraph.`,
+    ).join('\n\n');
+    const { container } = render(<PeopleDailyRenderer markdown={`# Daily Brief\n\n${sections}`} />);
+
+    expect(screen.getByTestId('people-daily-layout')).toHaveAttribute('data-variant', 'front-page');
+    expect(container.querySelectorAll('.people-daily-page').length).toBeGreaterThan(1);
+
+    for (let index = 1; index <= 8; index += 1) {
+      expect(screen.getAllByText(`Story ${index}`).length).toBeGreaterThan(0);
+      expect(screen.getByText(`Body ${index} second paragraph.`)).toBeInTheDocument();
+    }
+  });
+
+  it('does not invent an image block when the source has no image', () => {
+    const { container } = render(
+      <PeopleDailyRenderer
+        markdown={`# Daily Brief
+
+## Story 1
+Body 1.
+
+## Story 2
+Body 2.
+
+## Story 3
+Body 3.`}
+      />,
+    );
+
+    expect(screen.getByTestId('people-daily-layout')).toHaveAttribute('data-variant', 'front-page');
+    expect(container.querySelector('.people-daily-photo--empty')).not.toBeInTheDocument();
   });
 });

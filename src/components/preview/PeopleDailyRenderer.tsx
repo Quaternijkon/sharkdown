@@ -16,6 +16,14 @@ interface PeopleDailyRendererProps {
   markdown: string;
 }
 
+interface ContinuationStoryPage {
+  pageNumber: number;
+  stories: PeopleDailyStory[];
+}
+
+const FRONT_PAGE_PARAGRAPH_LIMITS = [2, 1, 1, 1, 1, 2];
+const CONTINUATION_PARAGRAPH_TARGET = 14;
+
 export function PeopleDailyRenderer({ markdown }: PeopleDailyRendererProps) {
   const document = buildPeopleDailyDocument(markdown);
 
@@ -26,7 +34,7 @@ export function PeopleDailyRenderer({ markdown }: PeopleDailyRendererProps) {
       data-variant={document.variant}
     >
       {document.variant === 'front-page' ? (
-        <FrontPage
+        <FrontPageDocument
           title={document.title}
           subtitle={document.subtitle}
           stories={document.stories}
@@ -45,16 +53,36 @@ export function PeopleDailyRenderer({ markdown }: PeopleDailyRendererProps) {
   );
 }
 
-interface FrontPageProps {
+interface FrontPageDocumentProps {
   title: string;
   subtitle: string;
   stories: PeopleDailyStory[];
   images: PeopleDailyImage[];
 }
 
-function FrontPage({ title, subtitle, stories, images }: FrontPageProps) {
+function FrontPageDocument({ title, subtitle, stories, images }: FrontPageDocumentProps) {
+  const { frontStories, continuationStories } = splitFrontPageStories(stories);
+  const continuationPages = paginateStories(continuationStories, 2);
+
+  return (
+    <>
+      <FrontPage title={title} subtitle={subtitle} stories={frontStories} image={images[0]} />
+      <StoryContinuationPages pages={continuationPages} />
+    </>
+  );
+}
+
+interface FrontPageProps {
+  title: string;
+  subtitle: string;
+  stories: PeopleDailyStory[];
+  image?: PeopleDailyImage;
+}
+
+function FrontPage({ title, subtitle, stories, image }: FrontPageProps) {
   const leadStory = stories[0];
-  const secondaryStories = stories.slice(1, 5);
+  const imageStory = stories[1];
+  const smallStories = stories.slice(2, 5);
   const lowerStory = stories[5];
 
   return (
@@ -65,31 +93,34 @@ function FrontPage({ title, subtitle, stories, images }: FrontPageProps) {
       </section>
 
       <div className="people-daily-front-grid">
-        <article className="people-daily-story people-daily-story--lead">
-          <h2>{leadStory?.title ?? title}</h2>
-          <ColumnText paragraphs={leadStory?.paragraphs ?? []} columns={3} />
-        </article>
+        {leadStory ? (
+          <article className="people-daily-story people-daily-story--lead">
+            <h2>{leadStory.title}</h2>
+            <ColumnText paragraphs={leadStory.paragraphs} columns={3} />
+          </article>
+        ) : null}
 
-        <article className="people-daily-story people-daily-story--image">
-          <NewspaperImage image={images[0]} />
-          <h2>{secondaryStories[0]?.title ?? '图片新闻'}</h2>
-          <ColumnText paragraphs={secondaryStories[0]?.paragraphs ?? []} columns={2} />
-        </article>
+        {imageStory ? (
+          <article className="people-daily-story people-daily-story--image">
+            {image ? <NewspaperImage image={image} /> : null}
+            <h2>{imageStory.title}</h2>
+            <ColumnText paragraphs={imageStory.paragraphs} columns={2} />
+          </article>
+        ) : null}
 
-        {secondaryStories.slice(1, 4).map((story, index) => (
+        {smallStories.map((story, index) => (
           <article className={`people-daily-story people-daily-story--small-${index + 1}`} key={story.title}>
             <h2>{story.title}</h2>
             <ColumnText paragraphs={story.paragraphs} columns={2} />
           </article>
         ))}
 
-        <article className="people-daily-story people-daily-story--bottom">
-          <h2>{lowerStory?.title ?? '综合报道'}</h2>
-          <ColumnText
-            paragraphs={lowerStory?.paragraphs ?? ['更多内容将根据正文篇幅自动流入后续版面。']}
-            columns={5}
-          />
-        </article>
+        {lowerStory ? (
+          <article className="people-daily-story people-daily-story--bottom">
+            <h2>{lowerStory.title}</h2>
+            <ColumnText paragraphs={lowerStory.paragraphs} columns={5} />
+          </article>
+        ) : null}
       </div>
     </NewspaperPage>
   );
@@ -128,6 +159,34 @@ function ArticlePage({ title, subtitle, pages, images, compact }: ArticlePagePro
   );
 }
 
+interface StoryContinuationPagesProps {
+  pages: ContinuationStoryPage[];
+}
+
+function StoryContinuationPages({ pages }: StoryContinuationPagesProps) {
+  return (
+    <>
+      {pages.map((page) => (
+        <NewspaperPage
+          pageNumber={page.pageNumber}
+          className="people-daily-page--article"
+          key={page.pageNumber}
+        >
+          <div className="people-daily-continuation-title">接上版</div>
+          <div className="people-daily-continuation-stories">
+            {page.stories.map((story) => (
+              <article className="people-daily-continuation-story" key={`${page.pageNumber}-${story.title}`}>
+                <h2>{story.title}</h2>
+                <ColumnText paragraphs={story.paragraphs} columns={3} />
+              </article>
+            ))}
+          </div>
+        </NewspaperPage>
+      ))}
+    </>
+  );
+}
+
 interface NewspaperPageProps {
   pageNumber: number;
   className: string;
@@ -143,7 +202,7 @@ function NewspaperPage({ pageNumber, className, children }: NewspaperPageProps) 
       <header className="people-daily-masthead">
         <div className="people-daily-logo">人民日报</div>
         <div className="people-daily-meta">
-          <span>2026年5月18日 星期一</span>
+          <span>{formatPublicationDate(new Date())}</span>
           <span>第 {pageNumber} 版</span>
         </div>
       </header>
@@ -170,7 +229,7 @@ function ColumnText({ paragraphs, columns }: ColumnTextProps) {
 }
 
 interface NewspaperImageProps {
-  image?: PeopleDailyImage;
+  image: PeopleDailyImage;
 }
 
 function NewspaperImage({ image }: NewspaperImageProps) {
@@ -178,9 +237,9 @@ function NewspaperImage({ image }: NewspaperImageProps) {
 
   useEffect(() => {
     let cancelled = false;
-    const localReference = parseLocalImageReference(image?.src);
+    const localReference = parseLocalImageReference(image.src);
 
-    if (!image?.src || !localReference) {
+    if (!localReference) {
       return;
     }
 
@@ -197,11 +256,7 @@ function NewspaperImage({ image }: NewspaperImageProps) {
     return () => {
       cancelled = true;
     };
-  }, [image?.src]);
-
-  if (!image) {
-    return <div className="people-daily-photo people-daily-photo--empty">新闻图片</div>;
-  }
+  }, [image.src]);
 
   const localReference = parseLocalImageReference(image.src);
   const src = localReference ? (resolved?.source === image.src ? resolved.src : null) : image.src;
@@ -211,4 +266,70 @@ function NewspaperImage({ image }: NewspaperImageProps) {
   }
 
   return <img className="people-daily-photo" alt={image.alt} src={src} loading="eager" />;
+}
+
+function splitFrontPageStories(stories: PeopleDailyStory[]): {
+  frontStories: PeopleDailyStory[];
+  continuationStories: PeopleDailyStory[];
+} {
+  const frontStories: PeopleDailyStory[] = [];
+  const continuationStories: PeopleDailyStory[] = [];
+
+  stories.forEach((story, index) => {
+    const limit = FRONT_PAGE_PARAGRAPH_LIMITS[index];
+    if (limit === undefined) {
+      continuationStories.push(story);
+      return;
+    }
+
+    frontStories.push({
+      title: story.title,
+      paragraphs: story.paragraphs.slice(0, limit),
+    });
+
+    const remainingParagraphs = story.paragraphs.slice(limit);
+    if (remainingParagraphs.length > 0) {
+      continuationStories.push({
+        title: story.title,
+        paragraphs: remainingParagraphs,
+      });
+    }
+  });
+
+  return { frontStories, continuationStories };
+}
+
+function paginateStories(stories: PeopleDailyStory[], startPage: number): ContinuationStoryPage[] {
+  const pages: ContinuationStoryPage[] = [];
+  let currentStories: PeopleDailyStory[] = [];
+  let currentWeight = 0;
+
+  function flush() {
+    if (currentStories.length === 0) {
+      return;
+    }
+    pages.push({
+      pageNumber: startPage + pages.length,
+      stories: currentStories,
+    });
+    currentStories = [];
+    currentWeight = 0;
+  }
+
+  for (const story of stories) {
+    const storyWeight = Math.max(1, story.paragraphs.length) + 1;
+    if (currentStories.length > 0 && currentWeight + storyWeight > CONTINUATION_PARAGRAPH_TARGET) {
+      flush();
+    }
+    currentStories.push(story);
+    currentWeight += storyWeight;
+  }
+
+  flush();
+  return pages;
+}
+
+function formatPublicationDate(date: Date): string {
+  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${weekdays[date.getDay()]}`;
 }
