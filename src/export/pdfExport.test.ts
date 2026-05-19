@@ -67,6 +67,40 @@ describe('text PDF print export', () => {
     expect(printDocument.style.getPropertyValue('--preview-font-body')).toBe('Georgia, serif');
   });
 
+  it('preserves the rendered preview frame styles while fitting it into the print page', () => {
+    const source = document.createElement('article');
+    source.className = 'markdown-export-frame sharkdown-prose sharkdown-prose--douyin';
+    source.style.width = '1080px';
+    source.style.padding = '48px';
+    source.style.borderRadius = '32px';
+    source.style.fontSize = '1.12rem';
+    source.style.backgroundColor = 'rgb(11, 11, 16)';
+    source.innerHTML = '<h1>Styled preview</h1><p>Text PDF keeps the preview layout.</p>';
+
+    const printDocument = buildPdfPrintDocument(
+      source,
+      resolvePdfSettings({
+        pageSize: 'a4',
+        orientation: 'portrait',
+        margin: 48,
+        includeToc: false,
+        includeHeaderFooter: false,
+      }),
+    );
+    const printFrame = printDocument.querySelector<HTMLElement>('.sharkdown-pdf-document');
+
+    expect(printFrame).not.toBeNull();
+    expect(printFrame?.classList.contains('markdown-export-frame')).toBe(true);
+    expect(printFrame?.style.width).toBe('1080px');
+    expect(printFrame?.style.padding).toBe('48px');
+    expect(printFrame?.style.borderRadius).toBe('32px');
+    expect(printFrame?.style.fontSize).toBe('1.12rem');
+    expect(printFrame?.style.backgroundColor).toBe('rgb(11, 11, 16)');
+    const printScale = printDocument.style.getPropertyValue('--sharkdown-pdf-scale');
+    expect(printScale).toMatch(/^0\.\d+$/);
+    expect(Number(printScale)).toBeLessThan(1);
+  });
+
   it('uses the rendered preview background for print pages when the theme is dark', () => {
     const source = document.createElement('article');
     source.className = 'markdown-export-frame sharkdown-prose sharkdown-prose--douyin';
@@ -100,6 +134,25 @@ describe('text PDF print export', () => {
     expect(css).toContain('counter(page)');
     expect(css).not.toContain('image/jpeg');
     expect(css).not.toContain('canvas');
+  });
+
+  it('keeps preview frame styling in print CSS instead of flattening it into a plain page', () => {
+    const css = createPdfPrintStyles(
+      resolvePdfSettings({
+        backgroundColor: 'rgb(11, 11, 16)',
+        includeHeaderFooter: false,
+        includePageNumbers: false,
+      }),
+    );
+
+    expect(css).toContain('zoom: var(--sharkdown-pdf-scale, 1)');
+    expect(css).toContain('margin-left: auto !important');
+    expect(css).toContain('margin-right: auto !important');
+    expect(css).not.toContain('border-radius: 0 !important');
+    expect(css).not.toContain('box-shadow: none !important');
+    expect(css).not.toContain('padding: 0 !important');
+    expect(css).not.toContain('width: auto !important');
+    expect(css).not.toContain('background: transparent !important');
   });
 
   it('prints a concrete page background instead of relying on a scoped custom property', () => {

@@ -2,6 +2,17 @@
 
 All notable changes to Sharkdown are recorded here. The app follows practical semantic versioning while it remains a private local tool.
 
+## [1.4.2] - 2026-05-19
+
+### Fixed
+
+- PDF export now preserves the preview frame's rendered width, padding, radius, background, shadow, typography, and theme styling instead of flattening it into a generic A4 text flow.
+- PDF print output scales the live preview frame proportionally to fit the selected A4/Letter page width, keeping the visual layout aligned with the preview while retaining selectable text, anchors, links, and generated TOC entries.
+
+### Compatibility
+
+- Still uses browser print with cloned DOM, not an image-in-PDF fallback, server renderer, backend, upload flow, or account system.
+
 ## [1.4.1] - 2026-05-19
 
 ### Fixed

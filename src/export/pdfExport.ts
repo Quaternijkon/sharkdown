@@ -19,6 +19,13 @@ const DEFAULT_PDF_SETTINGS: PdfExportSettings = {
   backgroundColor: '#ffffff',
 };
 
+const CSS_PIXELS_PER_INCH = 96;
+const POINTS_PER_INCH = 72;
+const PDF_PAGE_SIZES_INCHES = {
+  a4: { width: 8.2677, height: 11.6929 },
+  letter: { width: 8.5, height: 11 },
+} as const;
+
 export function resolvePdfSettings(settings: Partial<PdfExportSettings>): PdfExportSettings {
   return {
     ...DEFAULT_PDF_SETTINGS,
@@ -58,6 +65,7 @@ export function buildPdfPrintDocument(source: HTMLElement, settings: PdfExportSe
   root.className = 'sharkdown-pdf-print-root';
   copyPreviewVariables(source, root);
   root.style.setProperty('--sharkdown-pdf-background', resolveRenderedBackgroundColor(source, settings.backgroundColor));
+  root.style.setProperty('--sharkdown-pdf-scale', resolvePrintScale(source, settings));
 
   if (settings.includeHeaderFooter) {
     root.append(createPrintTitle(settings));
@@ -122,7 +130,7 @@ export function createPdfPrintStyles(settings: PdfExportSettings): string {
     background: ${pageBackground} !important;
     height: auto !important;
     overflow: visible !important;
-    width: auto !important;
+    width: 100% !important;
   }
 
   body {
@@ -145,23 +153,21 @@ export function createPdfPrintStyles(settings: PdfExportSettings): string {
     pointer-events: auto !important;
     position: static !important;
     top: auto !important;
-    width: auto !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  [data-sharkdown-print-root] .markdown-export-frame,
   [data-sharkdown-print-root] .sharkdown-pdf-document {
-    background: transparent !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
     box-sizing: border-box !important;
-    margin: 0 !important;
-    max-width: none !important;
+    height: auto !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    max-width: unset !important;
     min-height: auto !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    width: auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    zoom: var(--sharkdown-pdf-scale, 1);
   }
 
   .sharkdown-pdf-title {
@@ -297,6 +303,56 @@ function resolveRenderedBackgroundColor(source: HTMLElement, fallback: string): 
     return computedBackground;
   }
   return normalizeCssColor(fallback, DEFAULT_PDF_SETTINGS.backgroundColor);
+}
+
+function resolvePrintScale(source: HTMLElement, settings: PdfExportSettings): string {
+  const previewWidth = resolveElementPixelWidth(source);
+  const printableWidth = resolvePrintablePageWidth(settings);
+  if (previewWidth <= 0 || printableWidth <= 0) {
+    return '1';
+  }
+  return formatCssNumber(Math.min(1, printableWidth / previewWidth));
+}
+
+function resolveElementPixelWidth(source: HTMLElement): number {
+  const inlineWidth = parseCssPixelLength(source.style.width);
+  if (inlineWidth > 0) {
+    return inlineWidth;
+  }
+
+  const rectWidth = source.getBoundingClientRect().width;
+  if (rectWidth > 0) {
+    return rectWidth;
+  }
+
+  const computedWidth = parseCssPixelLength(window.getComputedStyle(source).width);
+  if (computedWidth > 0) {
+    return computedWidth;
+  }
+
+  return source.offsetWidth;
+}
+
+function resolvePrintablePageWidth(settings: PdfExportSettings): number {
+  const page = PDF_PAGE_SIZES_INCHES[settings.pageSize];
+  const pageWidthInches = settings.orientation === 'landscape' ? page.height : page.width;
+  const marginPixels = settings.margin * (CSS_PIXELS_PER_INCH / POINTS_PER_INCH);
+  return Math.max(0, pageWidthInches * CSS_PIXELS_PER_INCH - marginPixels * 2);
+}
+
+function parseCssPixelLength(value: string): number {
+  if (!value.trim().endsWith('px')) {
+    return 0;
+  }
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatCssNumber(value: number): string {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+  return value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 function normalizeCssColor(value: string, fallback: string): string {
